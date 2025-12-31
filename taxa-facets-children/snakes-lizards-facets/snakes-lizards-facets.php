@@ -42,6 +42,7 @@ if ( ! function_exists( 'snakes_lizards_facets_enum_options_from_map' ) ) {
 define( 'SNL_FACETS_OPTION_LABEL_MAP_RAW', 'snl_facets_label_map_raw' );
 define( 'SNL_FACETS_OPTION_UI_OVERRIDES', 'snl_facets_ui_overrides' );
 define( 'SNL_FACETS_OPTION_EXCLUDED_COLORS', 'snl_facets_excluded_colors' );
+define( 'SNL_FACETS_OPTION_COLOR_MAP_RAW', 'snl_facets_color_map_raw' );
 
 /**
  * Init after parent plugin loads.
@@ -97,6 +98,62 @@ function snl_facets_color_aliases() {
         'gold'         => 'yellow',
         'golden'       => 'yellow',
     );
+}
+
+function snl_facets_default_color_slugs() {
+    return array(
+        'red',
+        'orange',
+        'yellow',
+        'green',
+        'olive',
+        'blue',
+        'purple',
+        'white',
+        'tan',
+        'gray',
+        'pink',
+        'brown',
+        'black',
+        'teal',
+        'cyan',
+        'navy',
+        'gold',
+        'rust',
+        'iridescent',
+        'patterned',
+    );
+}
+
+function snl_facets_get_color_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_COLOR_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_color_slugs();
+    }
+
+    $parts  = preg_split( '/[\r\n,]+/', $raw );
+    $colors = array();
+
+    foreach ( $parts as $part ) {
+        $part = sanitize_key( trim( $part ) );
+        if ( $part !== '' ) {
+            $colors[] = $part;
+        }
+    }
+
+    return array_values( array_unique( $colors ) );
+}
+
+function snl_facets_get_color_map() {
+    $slugs = snl_facets_get_color_slugs();
+    $map   = array();
+
+    foreach ( $slugs as $index => $slug ) {
+        $map[ $slug ] = 1 << $index;
+    }
+
+    return $map;
 }
 
 function snl_facets_size_map() {
@@ -244,7 +301,8 @@ function snakes_lizards_facets_register_maps() {
         return array_merge( $aliases, snl_facets_color_aliases() );
     } );
 
-    add_filter( 'taxa_facets_color_map', 'snl_facets_filter_color_map' );
+    add_filter( 'taxa_facets_color_map', 'snl_facets_provide_color_map', 5 );
+    add_filter( 'taxa_facets_color_map', 'snl_facets_filter_color_map', 20 );
 
     /**
      * ---------------------------------
@@ -972,6 +1030,28 @@ function snl_facets_sanitize_excluded_colors( $value ) {
     return implode( "\n", array_values( array_unique( $colors ) ) );
 }
 
+function snl_facets_sanitize_color_map_raw( $value ) {
+    if ( ! is_string( $value ) ) {
+        return '';
+    }
+
+    $parts  = preg_split( '/[\r\n,]+/', $value );
+    $colors = array();
+
+    foreach ( $parts as $part ) {
+        $part = sanitize_key( trim( $part ) );
+        if ( $part !== '' && ! in_array( $part, $colors, true ) ) {
+            $colors[] = $part;
+        }
+    }
+
+    return implode( "\n", $colors );
+}
+
+function snl_facets_provide_color_map( $colors ) {
+    return snl_facets_get_color_map();
+}
+
 function snl_facets_filter_color_map( $colors ) {
     if ( ! is_array( $colors ) ) {
         return $colors;
@@ -1081,6 +1161,16 @@ function snakes_lizards_facets_register_settings() {
         )
     );
 
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_COLOR_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_color_map_raw',
+            'default'           => '',
+        )
+    );
+
     add_settings_section(
         'snl_facets_labels_section',
         'Facet Label Remapping',
@@ -1116,6 +1206,14 @@ function snakes_lizards_facets_register_settings() {
         'Color Controls',
         'snl_facets_color_section_intro',
         'snl-facet-labels'
+    );
+
+    add_settings_field(
+        'snl_facets_color_map_field',
+        'Color Map',
+        'snl_facets_color_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_color_section'
     );
 
     add_settings_field(
@@ -1228,7 +1326,23 @@ function snl_facets_ui_overrides_field_render() {
 
 function snl_facets_color_section_intro() {
     ?>
-    <p>Remove colors that do not apply to this taxonomy. Excluded colors will not appear in the UI or GPT prompt lists.</p>
+    <p>Define the color facet slugs for this taxonomy and optionally exclude specific colors. Colors appear in the UI and GPT prompt lists.</p>
+    <p><strong>Important:</strong> Do not reorder existing colors once in use. Only append new ones to preserve stored bit positions.</p>
+    <?php
+}
+
+function snl_facets_color_map_field_render() {
+    $value = get_option( SNL_FACETS_OPTION_COLOR_MAP_RAW, '' );
+    ?>
+    <textarea
+        name="<?php echo esc_attr( SNL_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
+        id="<?php echo esc_attr( SNL_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
+        rows="8"
+        cols="60"
+        class="large-text code"
+        placeholder="e.g. red&#10;orange&#10;yellow"
+    ><?php echo esc_textarea( $value ); ?></textarea>
+    <p class="description">Enter one color slug per line or separate with commas. Leave blank to use the default list.</p>
     <?php
 }
 
@@ -1255,7 +1369,9 @@ function snl_facets_overview_section_intro() {
 
 function snl_facets_overview_field_render() {
     $excluded_colors = snl_facets_get_excluded_colors();
+    $color_map = snl_facets_filter_color_map( snl_facets_get_color_map() );
     $sections = array(
+        'Color map'         => $color_map,
         'Color aliases'      => snl_facets_color_aliases(),
         'Size enum'          => snl_facets_size_map(),
         'Shape primary'      => snl_facets_shape_primary_map(),

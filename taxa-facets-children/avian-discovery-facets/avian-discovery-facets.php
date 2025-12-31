@@ -33,6 +33,7 @@ function avian_facets_init() {
  */
 define( 'AVIAN_FACETS_OPTION_UI_OVERRIDES', 'avian_facets_ui_overrides' );
 define( 'AVIAN_FACETS_OPTION_EXCLUDED_COLORS', 'avian_facets_excluded_colors' );
+define( 'AVIAN_FACETS_OPTION_COLOR_MAP_RAW', 'avian_facets_color_map_raw' );
 
 /**
  * Admin notice if parent plugin (Taxonomy API) isn't loaded.
@@ -63,6 +64,62 @@ function avian_facets_color_aliases() {
         'off white'   => 'white',
         'off-white'   => 'white',
     );
+}
+
+function avian_facets_default_color_slugs() {
+    return array(
+        'red',
+        'orange',
+        'yellow',
+        'green',
+        'olive',
+        'blue',
+        'purple',
+        'white',
+        'tan',
+        'gray',
+        'pink',
+        'brown',
+        'black',
+        'teal',
+        'cyan',
+        'navy',
+        'gold',
+        'rust',
+        'iridescent',
+        'patterned',
+    );
+}
+
+function avian_facets_get_color_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_COLOR_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_color_slugs();
+    }
+
+    $parts  = preg_split( '/[\r\n,]+/', $raw );
+    $colors = array();
+
+    foreach ( $parts as $part ) {
+        $part = sanitize_key( trim( $part ) );
+        if ( $part !== '' ) {
+            $colors[] = $part;
+        }
+    }
+
+    return array_values( array_unique( $colors ) );
+}
+
+function avian_facets_get_color_map() {
+    $slugs = avian_facets_get_color_slugs();
+    $map   = array();
+
+    foreach ( $slugs as $index => $slug ) {
+        $map[ $slug ] = 1 << $index;
+    }
+
+    return $map;
 }
 
 function avian_facets_size_map() {
@@ -192,7 +249,8 @@ function avian_facets_register_maps() {
         return array_merge( $aliases, avian_facets_color_aliases() );
     } );
 
-    add_filter( 'taxa_facets_color_map', 'avian_facets_filter_color_map' );
+    add_filter( 'taxa_facets_color_map', 'avian_facets_provide_color_map', 5 );
+    add_filter( 'taxa_facets_color_map', 'avian_facets_filter_color_map', 20 );
 
     /**
      * ---------------------------------
@@ -787,6 +845,28 @@ function avian_facets_sanitize_excluded_colors( $value ) {
     return implode( "\n", array_values( array_unique( $colors ) ) );
 }
 
+function avian_facets_sanitize_color_map_raw( $value ) {
+    if ( ! is_string( $value ) ) {
+        return '';
+    }
+
+    $parts  = preg_split( '/[\r\n,]+/', $value );
+    $colors = array();
+
+    foreach ( $parts as $part ) {
+        $part = sanitize_key( trim( $part ) );
+        if ( $part !== '' && ! in_array( $part, $colors, true ) ) {
+            $colors[] = $part;
+        }
+    }
+
+    return implode( "\n", $colors );
+}
+
+function avian_facets_provide_color_map( $colors ) {
+    return avian_facets_get_color_map();
+}
+
 function avian_facets_filter_color_map( $colors ) {
     if ( ! is_array( $colors ) ) {
         return $colors;
@@ -919,6 +999,16 @@ function avian_facets_register_settings() {
         )
     );
 
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_COLOR_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_color_map_raw',
+            'default'           => '',
+        )
+    );
+
     add_settings_section(
         'avian_facets_ui_section',
         'Facet UI Controls',
@@ -939,6 +1029,14 @@ function avian_facets_register_settings() {
         'Color Controls',
         'avian_facets_color_section_intro',
         'avian-facet-labels'
+    );
+
+    add_settings_field(
+        'avian_facets_color_map_field',
+        'Color Map',
+        'avian_facets_color_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_color_section'
     );
 
     add_settings_field(
@@ -1058,7 +1156,23 @@ function avian_facets_ui_overrides_field_render() {
 
 function avian_facets_color_section_intro() {
     ?>
-    <p>Remove colors that do not apply to this taxonomy. Excluded colors will not appear in the UI or GPT prompt lists.</p>
+    <p>Define the color facet slugs for this taxonomy and optionally exclude specific colors. Colors appear in the UI and GPT prompt lists.</p>
+    <p><strong>Important:</strong> Do not reorder existing colors once in use. Only append new ones to preserve stored bit positions.</p>
+    <?php
+}
+
+function avian_facets_color_map_field_render() {
+    $value = get_option( AVIAN_FACETS_OPTION_COLOR_MAP_RAW, '' );
+    ?>
+    <textarea
+        name="<?php echo esc_attr( AVIAN_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
+        id="<?php echo esc_attr( AVIAN_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
+        rows="8"
+        cols="60"
+        class="large-text code"
+        placeholder="e.g. red&#10;orange&#10;yellow"
+    ><?php echo esc_textarea( $value ); ?></textarea>
+    <p class="description">Enter one color slug per line or separate with commas. Leave blank to use the default list.</p>
     <?php
 }
 
@@ -1085,7 +1199,9 @@ function avian_facets_overview_section_intro() {
 
 function avian_facets_overview_field_render() {
     $excluded_colors = avian_facets_get_excluded_colors();
+    $color_map = avian_facets_filter_color_map( avian_facets_get_color_map() );
     $sections = array(
+        'Color map'       => $color_map,
         'Color aliases'   => avian_facets_color_aliases(),
         'Size enum'       => avian_facets_size_map(),
         'Shape primary'   => avian_facets_shape_primary_map(),
