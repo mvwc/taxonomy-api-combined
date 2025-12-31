@@ -35,39 +35,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  * COLOR (bitmask facet)
  * ---------------------------
  *
- * Color is generic enough to live in the core. Child plugins can still extend
- * or override the map via `taxa_facets_color_map`.
+ * Core intentionally provides no default colors. Child plugins should define
+ * their own color maps via `taxa_facets_color_map`.
  */
 
 function taxa_facets_get_color_map() {
     static $map = null;
 
     if ( null === $map ) {
-        // DO NOT REORDER. Only append new colors at the end.
-        $defaults = array(
-            'red'         => 1 << 0,
-            'orange'      => 1 << 1,
-            'yellow'      => 1 << 2,
-            'green'       => 1 << 3,
-            'olive'       => 1 << 4,
-            'blue'        => 1 << 5,
-            'purple'      => 1 << 6,
-            'white'       => 1 << 7,
-            'tan'         => 1 << 8,
-            'gray'        => 1 << 9,
-            'pink'        => 1 << 10,
-            'brown'       => 1 << 11,
-            'black'       => 1 << 12,
-
-            // Extended identification colors
-            'teal'        => 1 << 13,
-            'cyan'        => 1 << 14,
-            'navy'        => 1 << 15,
-            'gold'        => 1 << 16,
-            'rust'        => 1 << 17,
-            'iridescent'  => 1 << 18,
-            'patterned'   => 1 << 19,
-        );
+        $defaults = array(); // Core is intentionally empty / generic.
 
 
         /**
