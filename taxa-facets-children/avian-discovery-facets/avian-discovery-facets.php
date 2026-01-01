@@ -1820,11 +1820,16 @@ function avian_facets_build_site_focus_prompt( $focus_keyword ) {
     return <<<EOP
 You are configuring taxonomy facet token lists for an interactive field guide.
 Use the site focus keyword below as the primary taxon scope.
+Return exhaustive, inclusive lists that cover the full diversity of the taxon
+(tiny to huge sizes, all major habitats including marine/polar, and broad color
+coverage including uncommon but valid colors). Include specialist and edge-case
+groups when applicable (e.g., seabirds, penguins, hummingbirds).
 
 Site focus keyword: {$focus_keyword}
 
 Return JSON ONLY with lower-case slug tokens (use underscores).
 Each key should be an array of slugs, ordered from most common to less common.
+Favor completeness over brevity.
 
 Required JSON keys:
 - colors
