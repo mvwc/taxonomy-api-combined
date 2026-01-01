@@ -54,6 +54,8 @@ define( 'SNL_FACETS_OPTION_DIET_MAP_RAW', 'snl_facets_diet_map_raw' );
 define( 'SNL_FACETS_OPTION_VENOMOUS_MAP_RAW', 'snl_facets_venomous_map_raw' );
 define( 'SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW', 'snl_facets_behavior_map_raw' );
 define( 'SNL_FACETS_OPTION_HABITAT_MAP_RAW', 'snl_facets_habitat_map_raw' );
+define( 'SNL_FACETS_OPTION_SHORTCODE_SCOPE', 'snl_facets_shortcode_scope' );
+define( 'SNL_FACETS_OPTION_MAP_SCOPE', 'snl_facets_map_scope' );
 
 /**
  * Init after parent plugin loads.
@@ -113,6 +115,43 @@ function snl_facets_color_aliases() {
 
 function snl_facets_maps_locked() {
     return (bool) get_option( SNL_FACETS_OPTION_MAPS_LOCKED, false );
+}
+
+function snl_facets_allowed_scopes() {
+    return array( 'snakes', 'lizards', 'amphibians' );
+}
+
+function snl_facets_sanitize_scope_value( $value ) {
+    $value = is_string( $value ) ? sanitize_key( $value ) : '';
+    if ( '' === $value ) {
+        return '';
+    }
+
+    return in_array( $value, snl_facets_allowed_scopes(), true ) ? $value : '';
+}
+
+function snl_facets_get_map_scope() {
+    return snl_facets_sanitize_scope_value( get_option( SNL_FACETS_OPTION_MAP_SCOPE, '' ) );
+}
+
+function snl_facets_get_scoped_option_key( $base_key, $scope ) {
+    $scope = snl_facets_sanitize_scope_value( $scope );
+    if ( '' === $scope ) {
+        return $base_key;
+    }
+
+    return $base_key . '_' . $scope;
+}
+
+function snl_facets_get_scoped_option_value( $base_key, $scope ) {
+    $scoped_key = snl_facets_get_scoped_option_key( $base_key, $scope );
+    $value = get_option( $scoped_key, '' );
+
+    if ( $value === '' && $scoped_key !== $base_key ) {
+        $value = get_option( $base_key, '' );
+    }
+
+    return $value;
 }
 
 function snl_facets_parse_slug_list( $raw ) {
@@ -288,7 +327,8 @@ function snl_facets_default_habitat_slugs() {
 }
 
 function snl_facets_get_color_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_COLOR_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_COLOR_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_color_slugs();
@@ -303,7 +343,8 @@ function snl_facets_get_color_map() {
 }
 
 function snl_facets_get_size_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_SIZE_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_SIZE_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_size_slugs();
@@ -317,7 +358,8 @@ function snl_facets_size_map() {
 }
 
 function snl_facets_get_shape_primary_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_shape_primary_slugs();
@@ -331,7 +373,8 @@ function snl_facets_shape_primary_map() {
 }
 
 function snl_facets_get_shape_secondary_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_shape_secondary_slugs();
@@ -345,7 +388,8 @@ function snl_facets_shape_secondary_map() {
 }
 
 function snl_facets_get_pattern_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_PATTERN_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_PATTERN_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_pattern_slugs();
@@ -359,7 +403,8 @@ function snl_facets_pattern_map() {
 }
 
 function snl_facets_get_trait_primary_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_trait_primary_slugs();
@@ -373,7 +418,8 @@ function snl_facets_trait_primary_map() {
 }
 
 function snl_facets_get_trait_secondary_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_trait_secondary_slugs();
@@ -387,7 +433,8 @@ function snl_facets_trait_secondary_map() {
 }
 
 function snl_facets_get_diet_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_DIET_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_DIET_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_diet_slugs();
@@ -401,7 +448,8 @@ function snl_facets_diet_map() {
 }
 
 function snl_facets_get_venomous_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_VENOMOUS_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_VENOMOUS_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_venomous_slugs();
@@ -415,7 +463,8 @@ function snl_facets_venomous_map() {
 }
 
 function snl_facets_get_behavior_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_behavior_slugs();
@@ -429,7 +478,8 @@ function snl_facets_behavior_map() {
 }
 
 function snl_facets_get_habitat_slugs() {
-    $raw = get_option( SNL_FACETS_OPTION_HABITAT_MAP_RAW, '' );
+    $scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $raw = snl_facets_get_scoped_option_value( SNL_FACETS_OPTION_HABITAT_MAP_RAW, $scope );
 
     if ( ! is_string( $raw ) || $raw === '' ) {
         return snl_facets_default_habitat_slugs();
@@ -1493,6 +1543,54 @@ function snakes_lizards_facets_register_settings() {
         )
     );
 
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_SHORTCODE_SCOPE,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_shortcode_scope',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_MAP_SCOPE,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_map_scope',
+            'default'           => '',
+        )
+    );
+
+    $scoped_map_options = array(
+        SNL_FACETS_OPTION_COLOR_MAP_RAW          => 'snl_facets_sanitize_color_map_raw',
+        SNL_FACETS_OPTION_SIZE_MAP_RAW           => 'snl_facets_sanitize_size_map_raw',
+        SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW  => 'snl_facets_sanitize_shape_primary_map_raw',
+        SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW=> 'snl_facets_sanitize_shape_secondary_map_raw',
+        SNL_FACETS_OPTION_PATTERN_MAP_RAW        => 'snl_facets_sanitize_pattern_map_raw',
+        SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW  => 'snl_facets_sanitize_trait_primary_map_raw',
+        SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW=> 'snl_facets_sanitize_trait_secondary_map_raw',
+        SNL_FACETS_OPTION_DIET_MAP_RAW           => 'snl_facets_sanitize_diet_map_raw',
+        SNL_FACETS_OPTION_VENOMOUS_MAP_RAW       => 'snl_facets_sanitize_venomous_map_raw',
+        SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW       => 'snl_facets_sanitize_behavior_map_raw',
+        SNL_FACETS_OPTION_HABITAT_MAP_RAW        => 'snl_facets_sanitize_habitat_map_raw',
+    );
+
+    foreach ( snl_facets_allowed_scopes() as $scope ) {
+        foreach ( $scoped_map_options as $option_key => $sanitize_callback ) {
+            register_setting(
+                'snl_facets_labels_group',
+                snl_facets_get_scoped_option_key( $option_key, $scope ),
+                array(
+                    'type'              => 'string',
+                    'sanitize_callback' => $sanitize_callback,
+                    'default'           => '',
+                )
+            );
+        }
+    }
+
     add_settings_section(
         'snl_facets_labels_section',
         'Facet Label Remapping',
@@ -1557,6 +1655,14 @@ function snakes_lizards_facets_register_settings() {
         'snl_facets_maps_lock_field',
         'Lock Facet Maps',
         'snl_facets_maps_lock_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_map_scope_field',
+        'Facet Map Scope',
+        'snl_facets_map_scope_field_render',
         'snl-facet-labels',
         'snl_facets_map_section'
     );
@@ -1655,6 +1761,14 @@ function snakes_lizards_facets_register_settings() {
         'snl-facet-labels',
         'snl_facets_overview_section'
     );
+
+    add_settings_field(
+        'snl_facets_shortcode_scope_field',
+        'Explorer Shortcode Scope',
+        'snl_facets_shortcode_scope_field_render',
+        'snl-facet-labels',
+        'snl_facets_overview_section'
+    );
 }
 
 function snakes_lizards_facets_labels_section_intro() {
@@ -1684,7 +1798,7 @@ function snakes_lizards_facets_label_map_raw_field_render() {
 function snl_facets_ui_section_intro() {
     ?>
     <p>Control which facet filters are visible in the UI and how they are labeled.</p>
-    <p>These settings apply to both the Snakes and Lizards scopes.</p>
+    <p>These settings apply across all scopes.</p>
     <?php
 }
 
@@ -1749,12 +1863,14 @@ function snl_facets_color_section_intro() {
 }
 
 function snl_facets_color_map_field_render() {
-    $value = get_option( SNL_FACETS_OPTION_COLOR_MAP_RAW, '' );
+    $scope = snl_facets_get_map_scope();
+    $option_key = snl_facets_get_scoped_option_key( SNL_FACETS_OPTION_COLOR_MAP_RAW, $scope );
+    $value = get_option( $option_key, '' );
     $locked = snl_facets_maps_locked();
     ?>
     <textarea
-        name="<?php echo esc_attr( SNL_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
-        id="<?php echo esc_attr( SNL_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
+        name="<?php echo esc_attr( $option_key ); ?>"
+        id="<?php echo esc_attr( $option_key ); ?>"
         rows="8"
         cols="60"
         class="large-text code"
@@ -1787,6 +1903,7 @@ function snl_facets_map_section_intro() {
     ?>
     <p>Define the slugs and ordering for each facet map. These values determine enum IDs and bit positions.</p>
     <p><strong>Important:</strong> Do not reorder existing values once in use. Only append new ones to preserve stored mappings.</p>
+    <p><strong>Tip:</strong> Use the Facet Map Scope selector to edit per-scope maps or leave it blank for the site-wide defaults.</p>
     <?php
 }
 
@@ -1806,13 +1923,37 @@ function snl_facets_maps_lock_field_render() {
     <?php
 }
 
+function snl_facets_map_scope_field_render() {
+    $current = snl_facets_get_map_scope();
+    $options = array(
+        ''           => 'Site focus (no scope)',
+        'snakes'     => 'Snakes',
+        'lizards'    => 'Lizards',
+        'amphibians' => 'Amphibians',
+    );
+    ?>
+    <select id="snl_facets_map_scope" name="<?php echo esc_attr( SNL_FACETS_OPTION_MAP_SCOPE ); ?>">
+        <?php foreach ( $options as $value => $label ) : ?>
+            <option value="<?php echo esc_attr( $value ); ?>" <?php selected( $current, $value ); ?>>
+                <?php echo esc_html( $label ); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <p class="description">
+        <?php esc_html_e( 'Choose which scope you are editing or seeding with GPT. Leave blank to edit the site-wide maps.', 'snakes-lizards-facets' ); ?>
+    </p>
+    <?php
+}
+
 function snl_facets_render_map_textarea( $option_key, $placeholder, $description, $rows = 6 ) {
-    $value  = get_option( $option_key, '' );
+    $scope = snl_facets_get_map_scope();
+    $scoped_key = snl_facets_get_scoped_option_key( $option_key, $scope );
+    $value  = get_option( $scoped_key, '' );
     $locked = snl_facets_maps_locked();
     ?>
     <textarea
-        name="<?php echo esc_attr( $option_key ); ?>"
-        id="<?php echo esc_attr( $option_key ); ?>"
+        name="<?php echo esc_attr( $scoped_key ); ?>"
+        id="<?php echo esc_attr( $scoped_key ); ?>"
         rows="<?php echo esc_attr( (string) $rows ); ?>"
         cols="60"
         class="large-text code"
@@ -1912,7 +2053,47 @@ function snl_facets_overview_section_intro() {
     <?php
 }
 
+function snl_facets_sanitize_shortcode_scope( $value ) {
+    return snl_facets_sanitize_scope_value( $value );
+}
+
+function snl_facets_sanitize_map_scope( $value ) {
+    return snl_facets_sanitize_scope_value( $value );
+}
+
+function snl_facets_shortcode_scope_field_render() {
+    $current = snl_facets_sanitize_scope_value( get_option( SNL_FACETS_OPTION_SHORTCODE_SCOPE, '' ) );
+    $options = array(
+        ''           => 'Site focus (no scope)',
+        'snakes'     => 'Snakes',
+        'lizards'    => 'Lizards',
+        'amphibians' => 'Amphibians',
+    );
+    ?>
+    <p>
+        <label for="snl_facets_shortcode_scope">
+            <?php esc_html_e( 'Select the default scope used by the explorer shortcode.', 'snakes-lizards-facets' ); ?>
+        </label>
+    </p>
+    <select id="snl_facets_shortcode_scope" name="<?php echo esc_attr( SNL_FACETS_OPTION_SHORTCODE_SCOPE ); ?>">
+        <?php foreach ( $options as $value => $label ) : ?>
+            <option value="<?php echo esc_attr( $value ); ?>" <?php selected( $current, $value ); ?>>
+                <?php echo esc_html( $label ); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <p class="description">
+        <?php esc_html_e( 'Use [snl_explorer] in content. Leave blank to use the site focus (no scope).', 'snakes-lizards-facets' ); ?>
+    </p>
+    <?php
+}
+
 function snl_facets_overview_field_render() {
+    $previous_scope = function_exists( 'snl_get_current_scope' ) ? snl_get_current_scope() : '';
+    $map_scope = snl_facets_get_map_scope();
+    if ( '' !== $map_scope ) {
+        snl_set_current_scope( $map_scope );
+    }
     $excluded_colors = snl_facets_get_excluded_colors();
     $color_map = snl_facets_filter_color_map( snl_facets_get_color_map() );
     $sections = array(
@@ -1957,12 +2138,244 @@ function snl_facets_overview_field_render() {
         <?php endforeach; ?>
     </div>
     <?php
+    if ( $previous_scope !== $map_scope ) {
+        snl_set_current_scope( $previous_scope );
+    }
 }
+
+function snl_facets_build_site_focus_prompt( $focus_keyword, $scope ) {
+    $focus_keyword = trim( (string) $focus_keyword );
+    $focus_keyword = $focus_keyword !== '' ? $focus_keyword : 'the site focus keyword';
+    $scope = snl_facets_sanitize_scope_value( $scope );
+    $scope_label = $scope !== '' ? $scope : '';
+
+    return <<<EOP
+You are configuring taxonomy facet token lists for an interactive field guide.
+If a scope is provided, generate facet lists for that scoped group. Otherwise,
+use the site focus keyword as the primary taxon scope.
+Return exhaustive, inclusive lists that cover the full diversity of the taxon
+(tiny to huge sizes, all major habitats including marine/polar, and broad color
+coverage including uncommon but valid colors). Include specialist and edge-case
+groups when applicable.
+
+Site focus keyword: {$focus_keyword}
+Scope (if provided): {$scope_label}
+
+Return JSON ONLY with lower-case slug tokens (use underscores).
+Each key should be an array of slugs, ordered from most common to less common.
+Favor completeness over brevity.
+
+Required JSON keys:
+- colors
+- sizes
+- shape_primary
+- shape_secondary
+- pattern
+- trait_primary
+- trait_secondary
+- diet
+- venomous
+- behavior
+- habitat
+
+Example format:
+{
+  "colors": ["brown", "green", "black"],
+  "sizes": ["small", "medium", "large"],
+  "shape_primary": ["elongated", "stocky"],
+  "shape_secondary": ["tapered", "blunt"],
+  "pattern": ["solid", "banded"],
+  "trait_primary": ["keeled_scales", "smooth_scales"],
+  "trait_secondary": ["eye_stripe"],
+  "diet": ["insectivorous", "rodentivore"],
+  "venomous": ["venomous", "non_venomous"],
+  "behavior": ["basking", "arboreal"],
+  "habitat": ["desert", "forest"]
+}
+EOP;
+}
+
+function snl_facets_normalize_slug_list( $values ) {
+    if ( ! is_array( $values ) ) {
+        return array();
+    }
+
+    $normalized = array();
+    foreach ( $values as $value ) {
+        $slug = strtolower( trim( (string) $value ) );
+        $slug = preg_replace( '/[^a-z0-9_\\s-]/', '', $slug );
+        $slug = str_replace( array( ' ', '-' ), '_', $slug );
+        $slug = preg_replace( '/_+/', '_', $slug );
+        $slug = trim( $slug, '_' );
+        if ( $slug === '' ) {
+            continue;
+        }
+        $normalized[] = $slug;
+    }
+
+    return array_values( array_unique( $normalized ) );
+}
+
+function snl_facets_update_map_from_gpt( $option_key, $values, $scope ) {
+    $normalized = snl_facets_normalize_slug_list( $values );
+    if ( empty( $normalized ) ) {
+        return;
+    }
+
+    $scoped_key = snl_facets_get_scoped_option_key( $option_key, $scope );
+    update_option( $scoped_key, implode( "\n", $normalized ) );
+}
+
+function snl_facets_handle_gpt_seed_maps() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'You do not have permission to perform this action.', 'snakes-lizards-facets' ) );
+    }
+
+    check_admin_referer( 'snl_facets_seed_maps' );
+
+    if ( snl_facets_maps_locked() ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                     => 'snl-facet-labels',
+                'snl_facets_seed_status'   => 'locked',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    if ( ! function_exists( 'get_gpt_response' ) ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                     => 'snl-facet-labels',
+                'snl_facets_seed_status'   => 'missing',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    $gpt_enabled = get_option( 'gpt_enabled', '0' );
+    if ( ! in_array( $gpt_enabled, array( 'true', true, '1', 1 ), true ) ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                     => 'snl-facet-labels',
+                'snl_facets_seed_status'   => 'disabled',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    $map_scope     = snl_facets_get_map_scope();
+    $focus_keyword = get_option( 'site_focus_keyword', '' );
+    $prompt        = snl_facets_build_site_focus_prompt( $focus_keyword, $map_scope );
+    $response      = get_gpt_response( $prompt, 'gpt-4o-mini' );
+
+    error_log( '[SNL FACETS][GPT SEED] Scope: ' . ( $map_scope !== '' ? $map_scope : 'site_focus' ) );
+    error_log( '[SNL FACETS][GPT SEED] Prompt: ' . $prompt );
+
+    if ( ! $response ) {
+        error_log( '[SNL FACETS][GPT SEED] Empty response.' );
+        wp_redirect( add_query_arg(
+            array(
+                'page'                     => 'snl-facet-labels',
+                'snl_facets_seed_status'   => 'empty',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    $raw = trim( (string) $response );
+    error_log( '[SNL FACETS][GPT SEED] Raw response: ' . $raw );
+    if ( strpos( $raw, '```' ) === 0 ) {
+        $raw = preg_replace( '#^```(?:json)?#i', '', $raw );
+        $raw = preg_replace( '#```$#', '', $raw );
+        $raw = trim( $raw );
+    }
+
+    $data = json_decode( $raw, true );
+    if ( ! is_array( $data ) ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                     => 'snl-facet-labels',
+                'snl_facets_seed_status'   => 'invalid',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_COLOR_MAP_RAW, $data['colors'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_SIZE_MAP_RAW, $data['sizes'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW, $data['shape_primary'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW, $data['shape_secondary'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_PATTERN_MAP_RAW, $data['pattern'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW, $data['trait_primary'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW, $data['trait_secondary'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_DIET_MAP_RAW, $data['diet'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_VENOMOUS_MAP_RAW, $data['venomous'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW, $data['behavior'] ?? array(), $map_scope );
+    snl_facets_update_map_from_gpt( SNL_FACETS_OPTION_HABITAT_MAP_RAW, $data['habitat'] ?? array(), $map_scope );
+
+    wp_redirect( add_query_arg(
+        array(
+            'page'                     => 'snl-facet-labels',
+            'snl_facets_seed_status'   => 'success',
+        ),
+        admin_url( 'options-general.php' )
+    ) );
+    exit;
+}
+add_action( 'admin_post_snl_facets_seed_maps', 'snl_facets_handle_gpt_seed_maps' );
+
+function snl_facets_seed_maps_admin_notice() {
+    if ( ! isset( $_GET['page'], $_GET['snl_facets_seed_status'] ) || $_GET['page'] !== 'snl-facet-labels' ) {
+        return;
+    }
+
+    $status = sanitize_text_field( wp_unslash( $_GET['snl_facets_seed_status'] ) );
+    $messages = array(
+        'success'  => array( 'success', 'Facet map values updated from GPT.' ),
+        'locked'   => array( 'error', 'Facet maps are locked. Unlock them and save before generating.' ),
+        'missing'  => array( 'error', 'GPT helper is unavailable. Ensure the parent plugin is active.' ),
+        'disabled' => array( 'error', 'GPT is disabled. Enable it in the Taxonomy API settings.' ),
+        'empty'    => array( 'error', 'GPT returned an empty response.' ),
+        'invalid'  => array( 'error', 'GPT response could not be parsed as JSON.' ),
+    );
+
+    if ( ! isset( $messages[ $status ] ) ) {
+        return;
+    }
+
+    $class = $messages[ $status ][0];
+    $text  = $messages[ $status ][1];
+    printf(
+        '<div class="notice notice-%1$s"><p>%2$s</p></div>',
+        esc_attr( $class ),
+        esc_html( $text )
+    );
+}
+add_action( 'admin_notices', 'snl_facets_seed_maps_admin_notice' );
 
 function snakes_lizards_facets_render_settings_page() {
     ?>
     <div class="wrap">
         <h1>Snakes &amp; Lizards Facets</h1>
+        <?php if ( current_user_can( 'manage_options' ) ) : ?>
+            <p>
+                <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url(
+                    admin_url( 'admin-post.php?action=snl_facets_seed_maps' ),
+                    'snl_facets_seed_maps'
+                ) ); ?>">
+                    <?php esc_html_e( 'Generate facet maps from Site Focus Keyword (GPT)', 'snakes-lizards-facets' ); ?>
+                </a>
+            </p>
+            <p class="description">
+                <?php esc_html_e( 'Uses the selected Facet Map Scope (or Site Focus Keyword if blank) to ask GPT for the most appropriate facet values.', 'snakes-lizards-facets' ); ?>
+            </p>
+        <?php endif; ?>
         <form method="post" action="options.php">
             <?php
             settings_fields( 'snl_facets_labels_group' );
@@ -2041,11 +2454,23 @@ function snakes_lizards_facets_adjust_trait_labels( $facets, $post_id ) {
 
 /**
  * Helper shortcodes:
+ *   [snl_explorer]
  *   [snakes_explorer]
  *   [lizards_explorer]
+ *   [amphibians_explorer]
  */
+add_shortcode( 'snl_explorer', 'snl_explorer_shortcode' );
 add_shortcode( 'snakes_explorer', 'snl_snakes_explorer_shortcode' );
 add_shortcode( 'lizards_explorer', 'snl_lizards_explorer_shortcode' );
+add_shortcode( 'amphibians_explorer', 'snl_amphibians_explorer_shortcode' );
+
+function snl_explorer_shortcode( $atts = array(), $content = '', $tag = '' ) {
+    $scope = snl_facets_sanitize_scope_value( get_option( SNL_FACETS_OPTION_SHORTCODE_SCOPE, '' ) );
+    if ( $scope !== '' ) {
+        $atts['scope'] = $scope;
+    }
+    return taxa_facets_explorer_shortcode( $atts );
+}
 
 function snl_snakes_explorer_shortcode( $atts = array(), $content = '', $tag = '' ) {
     $atts['scope'] = 'snakes';
@@ -2054,6 +2479,11 @@ function snl_snakes_explorer_shortcode( $atts = array(), $content = '', $tag = '
 
 function snl_lizards_explorer_shortcode( $atts = array(), $content = '', $tag = '' ) {
     $atts['scope'] = 'lizards';
+    return taxa_facets_explorer_shortcode( $atts );
+}
+
+function snl_amphibians_explorer_shortcode( $atts = array(), $content = '', $tag = '' ) {
+    $atts['scope'] = 'amphibians';
     return taxa_facets_explorer_shortcode( $atts );
 }
 
@@ -2077,6 +2507,10 @@ function snl_locked_facets_from_scope( $json, $atts ) {
 
     if ( 'lizards' === $atts['scope'] ) {
         return wp_json_encode( array( 'group' => array( 'lizards-sauria' ) ) );
+    }
+
+    if ( 'amphibians' === $atts['scope'] ) {
+        return wp_json_encode( array( 'group' => array( 'amphibians' ) ) );
     }
 
     return $json;
@@ -2169,7 +2603,7 @@ function snl_filter_taxa_dropdown_for_scopes( $options, $atts ) {
         return $options;
     }
 
-    if ( ! in_array( $atts['scope'], array( 'snakes', 'lizards' ), true ) ) {
+    if ( ! in_array( $atts['scope'], array( 'snakes', 'lizards', 'amphibians' ), true ) ) {
         return $options;
     }
 
@@ -2196,6 +2630,9 @@ function snl_taxa_search_placeholder( $placeholder, $atts ) {
         }
         if ( 'lizards' === $atts['scope'] ) {
             return 'Search lizards...';
+        }
+        if ( 'amphibians' === $atts['scope'] ) {
+            return 'Search amphibians...';
         }
     }
 

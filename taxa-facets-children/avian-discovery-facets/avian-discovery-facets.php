@@ -1813,10 +1813,232 @@ function avian_facets_overview_field_render() {
     <?php
 }
 
+function avian_facets_build_site_focus_prompt( $focus_keyword ) {
+    $focus_keyword = trim( (string) $focus_keyword );
+    $focus_keyword = $focus_keyword !== '' ? $focus_keyword : 'the site focus keyword';
+
+    return <<<EOP
+You are configuring taxonomy facet token lists for an interactive field guide.
+Use the site focus keyword below as the primary taxon scope.
+Return exhaustive, inclusive lists that cover the full diversity of the taxon
+(tiny to huge sizes, all major habitats including marine/polar, and broad color
+coverage including uncommon but valid colors). Include specialist and edge-case
+groups when applicable (e.g., seabirds, penguins, hummingbirds).
+
+Site focus keyword: {$focus_keyword}
+
+Return JSON ONLY with lower-case slug tokens (use underscores).
+Each key should be an array of slugs, ordered from most common to less common.
+Favor completeness over brevity.
+
+Required JSON keys:
+- colors
+- sizes
+- shape_primary
+- shape_secondary
+- pattern
+- trait_primary
+- trait_secondary
+- diet
+- call_type
+- behavior
+- habitat
+
+Example format:
+{
+  "colors": ["brown", "black", "white"],
+  "sizes": ["sparrow", "robin", "crow"],
+  "shape_primary": ["compact", "long_winged"],
+  "shape_secondary": ["rounded", "forked"],
+  "pattern": ["solid", "striped"],
+  "trait_primary": ["crest", "long_beak"],
+  "trait_secondary": ["eye_ring"],
+  "diet": ["insectivorous", "granivorous"],
+  "call_type": ["song", "whistle"],
+  "behavior": ["flocking", "ground_foraging"],
+  "habitat": ["forest", "wetland"]
+}
+EOP;
+}
+
+function avian_facets_normalize_slug_list( $values ) {
+    if ( ! is_array( $values ) ) {
+        return array();
+    }
+
+    $normalized = array();
+    foreach ( $values as $value ) {
+        $slug = strtolower( trim( (string) $value ) );
+        $slug = preg_replace( '/[^a-z0-9_\\s-]/', '', $slug );
+        $slug = str_replace( array( ' ', '-' ), '_', $slug );
+        $slug = preg_replace( '/_+/', '_', $slug );
+        $slug = trim( $slug, '_' );
+        if ( $slug === '' ) {
+            continue;
+        }
+        $normalized[] = $slug;
+    }
+
+    return array_values( array_unique( $normalized ) );
+}
+
+function avian_facets_update_map_from_gpt( $option_key, $values ) {
+    $normalized = avian_facets_normalize_slug_list( $values );
+    if ( empty( $normalized ) ) {
+        return;
+    }
+
+    update_option( $option_key, implode( "\n", $normalized ) );
+}
+
+function avian_facets_handle_gpt_seed_maps() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'You do not have permission to perform this action.', 'avian-facets' ) );
+    }
+
+    check_admin_referer( 'avian_facets_seed_maps' );
+
+    if ( avian_facets_maps_locked() ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                      => 'avian-facet-labels',
+                'avian_facets_seed_status'  => 'locked',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    if ( ! function_exists( 'get_gpt_response' ) ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                      => 'avian-facet-labels',
+                'avian_facets_seed_status'  => 'missing',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    $gpt_enabled = get_option( 'gpt_enabled', '0' );
+    if ( ! in_array( $gpt_enabled, array( 'true', true, '1', 1 ), true ) ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                      => 'avian-facet-labels',
+                'avian_facets_seed_status'  => 'disabled',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    $focus_keyword = get_option( 'site_focus_keyword', '' );
+    $prompt        = avian_facets_build_site_focus_prompt( $focus_keyword );
+    $response      = get_gpt_response( $prompt, 'gpt-4o-mini' );
+
+    error_log( '[AVIAN FACETS][GPT SEED] Prompt: ' . $prompt );
+
+    if ( ! $response ) {
+        error_log( '[AVIAN FACETS][GPT SEED] Empty response.' );
+        wp_redirect( add_query_arg(
+            array(
+                'page'                      => 'avian-facet-labels',
+                'avian_facets_seed_status'  => 'empty',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    $raw = trim( (string) $response );
+    error_log( '[AVIAN FACETS][GPT SEED] Raw response: ' . $raw );
+    if ( strpos( $raw, '```' ) === 0 ) {
+        $raw = preg_replace( '#^```(?:json)?#i', '', $raw );
+        $raw = preg_replace( '#```$#', '', $raw );
+        $raw = trim( $raw );
+    }
+
+    $data = json_decode( $raw, true );
+    if ( ! is_array( $data ) ) {
+        wp_redirect( add_query_arg(
+            array(
+                'page'                      => 'avian-facet-labels',
+                'avian_facets_seed_status'  => 'invalid',
+            ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_COLOR_MAP_RAW, $data['colors'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_SIZE_MAP_RAW, $data['sizes'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW, $data['shape_primary'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW, $data['shape_secondary'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_PATTERN_MAP_RAW, $data['pattern'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW, $data['trait_primary'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW, $data['trait_secondary'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_DIET_MAP_RAW, $data['diet'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_CALL_TYPE_MAP_RAW, $data['call_type'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_BEHAVIOR_MAP_RAW, $data['behavior'] ?? array() );
+    avian_facets_update_map_from_gpt( AVIAN_FACETS_OPTION_HABITAT_MAP_RAW, $data['habitat'] ?? array() );
+
+    wp_redirect( add_query_arg(
+        array(
+            'page'                      => 'avian-facet-labels',
+            'avian_facets_seed_status'  => 'success',
+        ),
+        admin_url( 'options-general.php' )
+    ) );
+    exit;
+}
+add_action( 'admin_post_avian_facets_seed_maps', 'avian_facets_handle_gpt_seed_maps' );
+
+function avian_facets_seed_maps_admin_notice() {
+    if ( ! isset( $_GET['page'], $_GET['avian_facets_seed_status'] ) || $_GET['page'] !== 'avian-facet-labels' ) {
+        return;
+    }
+
+    $status = sanitize_text_field( wp_unslash( $_GET['avian_facets_seed_status'] ) );
+    $messages = array(
+        'success'  => array( 'success', 'Facet map values updated from GPT.' ),
+        'locked'   => array( 'error', 'Facet maps are locked. Unlock them and save before generating.' ),
+        'missing'  => array( 'error', 'GPT helper is unavailable. Ensure the parent plugin is active.' ),
+        'disabled' => array( 'error', 'GPT is disabled. Enable it in the Taxonomy API settings.' ),
+        'empty'    => array( 'error', 'GPT returned an empty response.' ),
+        'invalid'  => array( 'error', 'GPT response could not be parsed as JSON.' ),
+    );
+
+    if ( ! isset( $messages[ $status ] ) ) {
+        return;
+    }
+
+    $class = $messages[ $status ][0];
+    $text  = $messages[ $status ][1];
+    printf(
+        '<div class="notice notice-%1$s"><p>%2$s</p></div>',
+        esc_attr( $class ),
+        esc_html( $text )
+    );
+}
+add_action( 'admin_notices', 'avian_facets_seed_maps_admin_notice' );
+
 function avian_facets_render_settings_page() {
     ?>
     <div class="wrap">
         <h1>Avian Facets</h1>
+        <?php if ( current_user_can( 'manage_options' ) ) : ?>
+            <p>
+                <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url(
+                    admin_url( 'admin-post.php?action=avian_facets_seed_maps' ),
+                    'avian_facets_seed_maps'
+                ) ); ?>">
+                    <?php esc_html_e( 'Generate facet maps from Site Focus Keyword (GPT)', 'avian-facets' ); ?>
+                </a>
+            </p>
+            <p class="description">
+                <?php esc_html_e( 'Uses the Site Focus Keyword setting to ask GPT for the most appropriate facet values.', 'avian-facets' ); ?>
+            </p>
+        <?php endif; ?>
         <form method="post" action="options.php">
             <?php
             settings_fields( 'avian_facets_labels_group' );
