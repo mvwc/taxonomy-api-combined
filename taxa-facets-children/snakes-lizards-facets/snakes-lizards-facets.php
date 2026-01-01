@@ -54,6 +54,7 @@ define( 'SNL_FACETS_OPTION_DIET_MAP_RAW', 'snl_facets_diet_map_raw' );
 define( 'SNL_FACETS_OPTION_VENOMOUS_MAP_RAW', 'snl_facets_venomous_map_raw' );
 define( 'SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW', 'snl_facets_behavior_map_raw' );
 define( 'SNL_FACETS_OPTION_HABITAT_MAP_RAW', 'snl_facets_habitat_map_raw' );
+define( 'SNL_FACETS_OPTION_SHORTCODE_SCOPE', 'snl_facets_shortcode_scope' );
 
 /**
  * Init after parent plugin loads.
@@ -1493,6 +1494,16 @@ function snakes_lizards_facets_register_settings() {
         )
     );
 
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_SHORTCODE_SCOPE,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_shortcode_scope',
+            'default'           => 'snakes',
+        )
+    );
+
     add_settings_section(
         'snl_facets_labels_section',
         'Facet Label Remapping',
@@ -1652,6 +1663,14 @@ function snakes_lizards_facets_register_settings() {
         'snl_facets_overview_field',
         'Overrides & Additions',
         'snl_facets_overview_field_render',
+        'snl-facet-labels',
+        'snl_facets_overview_section'
+    );
+
+    add_settings_field(
+        'snl_facets_shortcode_scope_field',
+        'Explorer Shortcode Scope',
+        'snl_facets_shortcode_scope_field_render',
         'snl-facet-labels',
         'snl_facets_overview_section'
     );
@@ -1909,6 +1928,41 @@ function snl_facets_habitat_map_field_render() {
 function snl_facets_overview_section_intro() {
     ?>
     <p>These are the facet maps and aliases this plugin contributes on top of the core Taxonomy API plugin.</p>
+    <?php
+}
+
+function snl_facets_sanitize_shortcode_scope( $value ) {
+    $value = is_string( $value ) ? trim( $value ) : '';
+    $allowed = array( 'snakes', 'lizards', 'amphibians' );
+    if ( ! in_array( $value, $allowed, true ) ) {
+        return 'snakes';
+    }
+    return $value;
+}
+
+function snl_facets_shortcode_scope_field_render() {
+    $current = get_option( SNL_FACETS_OPTION_SHORTCODE_SCOPE, 'snakes' );
+    $options = array(
+        'snakes'     => 'Snakes',
+        'lizards'    => 'Lizards',
+        'amphibians' => 'Amphibians',
+    );
+    ?>
+    <p>
+        <label for="snl_facets_shortcode_scope">
+            <?php esc_html_e( 'Select the default scope used by the explorer shortcode.', 'snakes-lizards-facets' ); ?>
+        </label>
+    </p>
+    <select id="snl_facets_shortcode_scope" name="<?php echo esc_attr( SNL_FACETS_OPTION_SHORTCODE_SCOPE ); ?>">
+        <?php foreach ( $options as $value => $label ) : ?>
+            <option value="<?php echo esc_attr( $value ); ?>" <?php selected( $current, $value ); ?>>
+                <?php echo esc_html( $label ); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <p class="description">
+        <?php esc_html_e( 'Use [snl_explorer] in content. The selected scope will be applied automatically.', 'snakes-lizards-facets' ); ?>
+    </p>
     <?php
 }
 
@@ -2259,11 +2313,19 @@ function snakes_lizards_facets_adjust_trait_labels( $facets, $post_id ) {
 
 /**
  * Helper shortcodes:
+ *   [snl_explorer]
  *   [snakes_explorer]
  *   [lizards_explorer]
  */
+add_shortcode( 'snl_explorer', 'snl_explorer_shortcode' );
 add_shortcode( 'snakes_explorer', 'snl_snakes_explorer_shortcode' );
 add_shortcode( 'lizards_explorer', 'snl_lizards_explorer_shortcode' );
+
+function snl_explorer_shortcode( $atts = array(), $content = '', $tag = '' ) {
+    $scope = get_option( SNL_FACETS_OPTION_SHORTCODE_SCOPE, 'snakes' );
+    $atts['scope'] = snl_facets_sanitize_shortcode_scope( $scope );
+    return taxa_facets_explorer_shortcode( $atts );
+}
 
 function snl_snakes_explorer_shortcode( $atts = array(), $content = '', $tag = '' ) {
     $atts['scope'] = 'snakes';
