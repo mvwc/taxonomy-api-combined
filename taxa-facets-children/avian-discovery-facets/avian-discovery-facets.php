@@ -34,6 +34,17 @@ function avian_facets_init() {
 define( 'AVIAN_FACETS_OPTION_UI_OVERRIDES', 'avian_facets_ui_overrides' );
 define( 'AVIAN_FACETS_OPTION_EXCLUDED_COLORS', 'avian_facets_excluded_colors' );
 define( 'AVIAN_FACETS_OPTION_COLOR_MAP_RAW', 'avian_facets_color_map_raw' );
+define( 'AVIAN_FACETS_OPTION_MAPS_LOCKED', 'avian_facets_maps_locked' );
+define( 'AVIAN_FACETS_OPTION_SIZE_MAP_RAW', 'avian_facets_size_map_raw' );
+define( 'AVIAN_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW', 'avian_facets_shape_primary_map_raw' );
+define( 'AVIAN_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW', 'avian_facets_shape_secondary_map_raw' );
+define( 'AVIAN_FACETS_OPTION_PATTERN_MAP_RAW', 'avian_facets_pattern_map_raw' );
+define( 'AVIAN_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW', 'avian_facets_trait_primary_map_raw' );
+define( 'AVIAN_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW', 'avian_facets_trait_secondary_map_raw' );
+define( 'AVIAN_FACETS_OPTION_DIET_MAP_RAW', 'avian_facets_diet_map_raw' );
+define( 'AVIAN_FACETS_OPTION_CALL_TYPE_MAP_RAW', 'avian_facets_call_type_map_raw' );
+define( 'AVIAN_FACETS_OPTION_BEHAVIOR_MAP_RAW', 'avian_facets_behavior_map_raw' );
+define( 'AVIAN_FACETS_OPTION_HABITAT_MAP_RAW', 'avian_facets_habitat_map_raw' );
 
 /**
  * Admin notice if parent plugin (Taxonomy API) isn't loaded.
@@ -66,6 +77,48 @@ function avian_facets_color_aliases() {
     );
 }
 
+function avian_facets_maps_locked() {
+    return (bool) get_option( AVIAN_FACETS_OPTION_MAPS_LOCKED, false );
+}
+
+function avian_facets_parse_slug_list( $raw ) {
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return array();
+    }
+
+    $parts = preg_split( '/[\r\n,]+/', $raw );
+    $slugs = array();
+
+    foreach ( $parts as $part ) {
+        $part = sanitize_key( trim( $part ) );
+        if ( $part !== '' ) {
+            $slugs[] = $part;
+        }
+    }
+
+    return array_values( array_unique( $slugs ) );
+}
+
+function avian_facets_build_enum_map( array $slugs ) {
+    $map = array();
+
+    foreach ( $slugs as $index => $slug ) {
+        $map[ $slug ] = $index + 1;
+    }
+
+    return $map;
+}
+
+function avian_facets_build_bitmask_map( array $slugs ) {
+    $map = array();
+
+    foreach ( $slugs as $index => $slug ) {
+        $map[ $slug ] = 1 << $index;
+    }
+
+    return $map;
+}
+
 function avian_facets_default_color_slugs() {
     return array(
         'red',
@@ -91,6 +144,112 @@ function avian_facets_default_color_slugs() {
     );
 }
 
+function avian_facets_default_size_slugs() {
+    return array(
+        'tiny',
+        'small',
+        'medium',
+        'large',
+        'very_large',
+    );
+}
+
+function avian_facets_default_shape_primary_slugs() {
+    return array(
+        'slender',
+        'broad',
+        'stocky',
+        'pointed',
+        'rounded',
+    );
+}
+
+function avian_facets_default_shape_secondary_slugs() {
+    return array(
+        'short',
+        'long',
+        'forked',
+        'rounded',
+        'wedged',
+    );
+}
+
+function avian_facets_default_pattern_slugs() {
+    return array(
+        'solid',
+        'spotted',
+        'striped',
+        'barred',
+        'mottled',
+        'streaked',
+    );
+}
+
+function avian_facets_default_trait_primary_slugs() {
+    return array(
+        'perching',
+        'soaring',
+        'wading',
+        'diving',
+        'ground_foraging',
+    );
+}
+
+function avian_facets_default_trait_secondary_slugs() {
+    return array(
+        'vocal',
+        'nocturnal',
+        'diurnal',
+        'crepuscular',
+    );
+}
+
+function avian_facets_default_diet_slugs() {
+    return array(
+        'carnivore',
+        'insectivore',
+        'omnivore',
+        'herbivore',
+        'granivore',
+        'nectarivore',
+        'frugivore',
+    );
+}
+
+function avian_facets_default_call_type_slugs() {
+    return array(
+        'song',
+        'whistle',
+        'call',
+        'scream',
+        'laughing',
+        'drumming',
+    );
+}
+
+function avian_facets_default_behavior_slugs() {
+    return array(
+        'solitary',
+        'social',
+        'territorial',
+        'migratory',
+        'resident',
+        'colonial',
+    );
+}
+
+function avian_facets_default_habitat_slugs() {
+    return array(
+        'forest',
+        'woodland',
+        'savanna',
+        'wetland',
+        'grassland',
+        'coastal',
+        'urban',
+    );
+}
+
 function avian_facets_get_color_slugs() {
     $raw = get_option( AVIAN_FACETS_OPTION_COLOR_MAP_RAW, '' );
 
@@ -98,134 +257,152 @@ function avian_facets_get_color_slugs() {
         return avian_facets_default_color_slugs();
     }
 
-    $parts  = preg_split( '/[\r\n,]+/', $raw );
-    $colors = array();
-
-    foreach ( $parts as $part ) {
-        $part = sanitize_key( trim( $part ) );
-        if ( $part !== '' ) {
-            $colors[] = $part;
-        }
-    }
-
-    return array_values( array_unique( $colors ) );
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_get_color_map() {
     $slugs = avian_facets_get_color_slugs();
-    $map   = array();
+    return avian_facets_build_bitmask_map( $slugs );
+}
 
-    foreach ( $slugs as $index => $slug ) {
-        $map[ $slug ] = 1 << $index;
+function avian_facets_get_size_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_SIZE_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_size_slugs();
     }
 
-    return $map;
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_size_map() {
-    return array(
-        'tiny'       => 1,
-        'small'      => 2,
-        'medium'     => 3,
-        'large'      => 4,
-        'very_large' => 5,
-    );
+    return avian_facets_build_enum_map( avian_facets_get_size_slugs() );
+}
+
+function avian_facets_get_shape_primary_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_shape_primary_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_shape_primary_map() {
-    return array(
-        'slender' => 1,
-        'broad'   => 2,
-        'stocky'  => 3,
-        'pointed' => 4,
-        'rounded' => 5,
-    );
+    return avian_facets_build_enum_map( avian_facets_get_shape_primary_slugs() );
+}
+
+function avian_facets_get_shape_secondary_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_shape_secondary_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_shape_secondary_map() {
-    return array(
-        'short'   => 1,
-        'long'    => 2,
-        'forked'  => 3,
-        'rounded' => 4,
-        'wedged'  => 5,
-    );
+    return avian_facets_build_enum_map( avian_facets_get_shape_secondary_slugs() );
+}
+
+function avian_facets_get_pattern_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_PATTERN_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_pattern_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_pattern_map() {
-    return array(
-        'solid'    => 1,
-        'spotted'  => 2,
-        'striped'  => 3,
-        'barred'   => 4,
-        'mottled'  => 5,
-        'streaked' => 6,
-    );
+    return avian_facets_build_enum_map( avian_facets_get_pattern_slugs() );
+}
+
+function avian_facets_get_trait_primary_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_trait_primary_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_trait_primary_map() {
-    return array(
-        'perching'        => 1,
-        'soaring'         => 2,
-        'wading'          => 3,
-        'diving'          => 4,
-        'ground_foraging' => 5,
-    );
+    return avian_facets_build_enum_map( avian_facets_get_trait_primary_slugs() );
+}
+
+function avian_facets_get_trait_secondary_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_trait_secondary_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_trait_secondary_map() {
-    return array(
-        'vocal'       => 1,
-        'nocturnal'   => 2,
-        'diurnal'     => 3,
-        'crepuscular' => 4,
-    );
+    return avian_facets_build_enum_map( avian_facets_get_trait_secondary_slugs() );
+}
+
+function avian_facets_get_diet_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_DIET_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_diet_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_diet_map() {
-    return array(
-        'carnivore'   => 1,
-        'insectivore' => 2,
-        'omnivore'    => 3,
-        'herbivore'   => 4,
-        'granivore'   => 5,
-        'nectarivore' => 6,
-        'frugivore'   => 7,
-    );
+    return avian_facets_build_enum_map( avian_facets_get_diet_slugs() );
+}
+
+function avian_facets_get_call_type_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_CALL_TYPE_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_call_type_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_call_type_map() {
-    return array(
-        'song'     => 1 << 0,
-        'whistle'  => 1 << 1,
-        'call'     => 1 << 2,
-        'scream'   => 1 << 3,
-        'laughing' => 1 << 4,
-        'drumming' => 1 << 5,
-    );
+    return avian_facets_build_bitmask_map( avian_facets_get_call_type_slugs() );
+}
+
+function avian_facets_get_behavior_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_BEHAVIOR_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_behavior_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_behavior_map() {
-    return array(
-        'solitary'    => 1 << 0,
-        'social'      => 1 << 1,
-        'territorial' => 1 << 2,
-        'migratory'   => 1 << 3,
-        'resident'    => 1 << 4,
-        'colonial'    => 1 << 5,
-    );
+    return avian_facets_build_bitmask_map( avian_facets_get_behavior_slugs() );
+}
+
+function avian_facets_get_habitat_slugs() {
+    $raw = get_option( AVIAN_FACETS_OPTION_HABITAT_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return avian_facets_default_habitat_slugs();
+    }
+
+    return avian_facets_parse_slug_list( $raw );
 }
 
 function avian_facets_habitat_map() {
-    return array(
-        'forest'    => 1 << 0,
-        'woodland'  => 1 << 1,
-        'savanna'   => 1 << 2,
-        'wetland'   => 1 << 3,
-        'grassland' => 1 << 4,
-        'coastal'   => 1 << 5,
-        'urban'     => 1 << 6,
-    );
+    return avian_facets_build_bitmask_map( avian_facets_get_habitat_slugs() );
 }
 
 /**
@@ -259,11 +436,7 @@ function avian_facets_register_maps() {
      *
      * Maps GPT tokens like "medium" to small ints.
      */
-    add_filter( 'taxa_facets_size_enum_map', function( $defaults ) {
-        // DO NOT REORDER once live; only append.
-        // If there were existing values in $defaults, we keep their IDs.
-        return $defaults + avian_facets_size_map();
-    } );
+    add_filter( 'taxa_facets_size_enum_map', 'avian_facets_provide_size_map', 5 );
 
     /**
      * ---------------------------------
@@ -271,9 +444,7 @@ function avian_facets_register_maps() {
      * ---------------------------------
      *
      */
-    add_filter( 'taxa_facets_shape_primary_enum_map', function( $defaults ) {
-        return $defaults + avian_facets_shape_primary_map();
-    } );
+    add_filter( 'taxa_facets_shape_primary_enum_map', 'avian_facets_provide_shape_primary_map', 5 );
 
     /**
      * ---------------------------------
@@ -281,9 +452,7 @@ function avian_facets_register_maps() {
      * ---------------------------------
      *
      */
-    add_filter( 'taxa_facets_shape_secondary_enum_map', function( $defaults ) {
-        return $defaults + avian_facets_shape_secondary_map();
-    } );
+    add_filter( 'taxa_facets_shape_secondary_enum_map', 'avian_facets_provide_shape_secondary_map', 5 );
 
     /**
      * ---------------------------------
@@ -291,9 +460,7 @@ function avian_facets_register_maps() {
      * ---------------------------------
      *
      */
-    add_filter( 'taxa_facets_pattern_enum_map', function( $defaults ) {
-        return $defaults + avian_facets_pattern_map();
-    } );
+    add_filter( 'taxa_facets_pattern_enum_map', 'avian_facets_provide_pattern_map', 5 );
 
     /**
      * ---------------------------------
@@ -301,9 +468,7 @@ function avian_facets_register_maps() {
      * ---------------------------------
      *
      */
-    add_filter( 'taxa_facets_trait_primary_enum_map', function( $defaults ) {
-        return $defaults + avian_facets_trait_primary_map();
-    } );
+    add_filter( 'taxa_facets_trait_primary_enum_map', 'avian_facets_provide_trait_primary_map', 5 );
 
     /**
      * ---------------------------------
@@ -312,9 +477,7 @@ function avian_facets_register_maps() {
      *
      * Secondary traits like activity pattern or vocal emphasis.
      */
-    add_filter( 'taxa_facets_trait_secondary_enum_map', function( $defaults ) {
-        return $defaults + avian_facets_trait_secondary_map();
-    } );
+    add_filter( 'taxa_facets_trait_secondary_enum_map', 'avian_facets_provide_trait_secondary_map', 5 );
 
     /**
      * ---------------------------------
@@ -323,9 +486,7 @@ function avian_facets_register_maps() {
      *
      * Diet traits such as "carnivore" and "insectivore".
      */
-    add_filter( 'taxa_facets_diet_enum_map', function( $defaults ) {
-        return $defaults + avian_facets_diet_map();
-    } );
+    add_filter( 'taxa_facets_diet_enum_map', 'avian_facets_provide_diet_map', 5 );
 
     /**
      * ---------------------------------
@@ -334,11 +495,7 @@ function avian_facets_register_maps() {
      *
      * GPT: "laughing" 
      */
-    add_filter( 'taxa_facets_call_type_map', function( $defaults ) {
-        // DO NOT REORDER once live; append only.
-        // Preserve any pre-existing entries in $defaults.
-        return $defaults + avian_facets_call_type_map();
-    } );
+    add_filter( 'taxa_facets_call_type_map', 'avian_facets_provide_call_type_map', 5 );
 
     /**
      * ---------------------------------
@@ -347,9 +504,7 @@ function avian_facets_register_maps() {
      *
      * GPT used "social" and "territorial".
      */
-    add_filter( 'taxa_facets_behavior_map', function( $defaults ) {
-        return $defaults + avian_facets_behavior_map();
-    } );
+    add_filter( 'taxa_facets_behavior_map', 'avian_facets_provide_behavior_map', 5 );
 
     /**
      * ---------------------------------
@@ -358,9 +513,7 @@ function avian_facets_register_maps() {
      *
      * GPT used "woodland" and "savanna" in your log.
      */
-    add_filter( 'taxa_facets_habitat_map', function( $defaults ) {
-        return $defaults + avian_facets_habitat_map();
-    } );
+    add_filter( 'taxa_facets_habitat_map', 'avian_facets_provide_habitat_map', 5 );
 
     /**
      * ---------------------------------
@@ -846,25 +999,108 @@ function avian_facets_sanitize_excluded_colors( $value ) {
 }
 
 function avian_facets_sanitize_color_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_COLOR_MAP_RAW );
+}
+
+function avian_facets_sanitize_locked_map_raw( $value, $option_key ) {
+    if ( avian_facets_maps_locked() ) {
+        $existing = get_option( $option_key, '' );
+        return is_string( $existing ) ? $existing : '';
+    }
+
     if ( ! is_string( $value ) ) {
         return '';
     }
 
-    $parts  = preg_split( '/[\r\n,]+/', $value );
-    $colors = array();
+    return implode( "\n", avian_facets_parse_slug_list( $value ) );
+}
 
-    foreach ( $parts as $part ) {
-        $part = sanitize_key( trim( $part ) );
-        if ( $part !== '' && ! in_array( $part, $colors, true ) ) {
-            $colors[] = $part;
-        }
-    }
+function avian_facets_sanitize_maps_locked( $value ) {
+    return (bool) $value;
+}
 
-    return implode( "\n", $colors );
+function avian_facets_sanitize_size_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_SIZE_MAP_RAW );
+}
+
+function avian_facets_sanitize_shape_primary_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW );
+}
+
+function avian_facets_sanitize_shape_secondary_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW );
+}
+
+function avian_facets_sanitize_pattern_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_PATTERN_MAP_RAW );
+}
+
+function avian_facets_sanitize_trait_primary_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW );
+}
+
+function avian_facets_sanitize_trait_secondary_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW );
+}
+
+function avian_facets_sanitize_diet_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_DIET_MAP_RAW );
+}
+
+function avian_facets_sanitize_call_type_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_CALL_TYPE_MAP_RAW );
+}
+
+function avian_facets_sanitize_behavior_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_BEHAVIOR_MAP_RAW );
+}
+
+function avian_facets_sanitize_habitat_map_raw( $value ) {
+    return avian_facets_sanitize_locked_map_raw( $value, AVIAN_FACETS_OPTION_HABITAT_MAP_RAW );
 }
 
 function avian_facets_provide_color_map( $colors ) {
     return avian_facets_get_color_map();
+}
+
+function avian_facets_provide_size_map( $defaults ) {
+    return avian_facets_size_map();
+}
+
+function avian_facets_provide_shape_primary_map( $defaults ) {
+    return avian_facets_shape_primary_map();
+}
+
+function avian_facets_provide_shape_secondary_map( $defaults ) {
+    return avian_facets_shape_secondary_map();
+}
+
+function avian_facets_provide_pattern_map( $defaults ) {
+    return avian_facets_pattern_map();
+}
+
+function avian_facets_provide_trait_primary_map( $defaults ) {
+    return avian_facets_trait_primary_map();
+}
+
+function avian_facets_provide_trait_secondary_map( $defaults ) {
+    return avian_facets_trait_secondary_map();
+}
+
+function avian_facets_provide_diet_map( $defaults ) {
+    return avian_facets_diet_map();
+}
+
+function avian_facets_provide_call_type_map( $defaults ) {
+    return avian_facets_call_type_map();
+}
+
+function avian_facets_provide_behavior_map( $defaults ) {
+    return avian_facets_behavior_map();
+}
+
+function avian_facets_provide_habitat_map( $defaults ) {
+    return avian_facets_habitat_map();
 }
 
 function avian_facets_filter_color_map( $colors ) {
@@ -1009,6 +1245,116 @@ function avian_facets_register_settings() {
         )
     );
 
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_MAPS_LOCKED,
+        array(
+            'type'              => 'boolean',
+            'sanitize_callback' => 'avian_facets_sanitize_maps_locked',
+            'default'           => false,
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_SIZE_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_size_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_shape_primary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_shape_secondary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_PATTERN_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_pattern_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_trait_primary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_trait_secondary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_DIET_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_diet_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_CALL_TYPE_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_call_type_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_BEHAVIOR_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_behavior_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'avian_facets_labels_group',
+        AVIAN_FACETS_OPTION_HABITAT_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'avian_facets_sanitize_habitat_map_raw',
+            'default'           => '',
+        )
+    );
+
     add_settings_section(
         'avian_facets_ui_section',
         'Facet UI Controls',
@@ -1045,6 +1391,101 @@ function avian_facets_register_settings() {
         'avian_facets_color_exclusions_field_render',
         'avian-facet-labels',
         'avian_facets_color_section'
+    );
+
+    add_settings_section(
+        'avian_facets_map_section',
+        'Facet Map Controls',
+        'avian_facets_map_section_intro',
+        'avian-facet-labels'
+    );
+
+    add_settings_field(
+        'avian_facets_maps_lock_field',
+        'Lock Facet Maps',
+        'avian_facets_maps_lock_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_size_map_field',
+        'Size Map',
+        'avian_facets_size_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_shape_primary_map_field',
+        'Shape Primary Map',
+        'avian_facets_shape_primary_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_shape_secondary_map_field',
+        'Shape Secondary Map',
+        'avian_facets_shape_secondary_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_pattern_map_field',
+        'Pattern Map',
+        'avian_facets_pattern_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_trait_primary_map_field',
+        'Trait Primary Map',
+        'avian_facets_trait_primary_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_trait_secondary_map_field',
+        'Trait Secondary Map',
+        'avian_facets_trait_secondary_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_diet_map_field',
+        'Diet Map',
+        'avian_facets_diet_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_call_type_map_field',
+        'Call Type Map',
+        'avian_facets_call_type_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_behavior_map_field',
+        'Behavior Map',
+        'avian_facets_behavior_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
+    );
+
+    add_settings_field(
+        'avian_facets_habitat_map_field',
+        'Habitat Map',
+        'avian_facets_habitat_map_field_render',
+        'avian-facet-labels',
+        'avian_facets_map_section'
     );
 
     add_settings_section(
@@ -1163,6 +1604,7 @@ function avian_facets_color_section_intro() {
 
 function avian_facets_color_map_field_render() {
     $value = get_option( AVIAN_FACETS_OPTION_COLOR_MAP_RAW, '' );
+    $locked = avian_facets_maps_locked();
     ?>
     <textarea
         name="<?php echo esc_attr( AVIAN_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
@@ -1171,8 +1613,12 @@ function avian_facets_color_map_field_render() {
         cols="60"
         class="large-text code"
         placeholder="e.g. red&#10;orange&#10;yellow"
+        <?php echo $locked ? 'readonly' : ''; ?>
     ><?php echo esc_textarea( $value ); ?></textarea>
     <p class="description">Enter one color slug per line or separate with commas. Leave blank to use the default list.</p>
+    <?php if ( $locked ) : ?>
+        <p class="description"><strong>Maps are locked.</strong> Unlock facet maps below and save before editing this list.</p>
+    <?php endif; ?>
     <?php
 }
 
@@ -1189,6 +1635,129 @@ function avian_facets_color_exclusions_field_render() {
     ><?php echo esc_textarea( $value ); ?></textarea>
     <p class="description">Enter one color slug per line or separate with commas.</p>
     <?php
+}
+
+function avian_facets_map_section_intro() {
+    ?>
+    <p>Define the slugs and ordering for each facet map. These values determine enum IDs and bit positions.</p>
+    <p><strong>Important:</strong> Do not reorder existing values once in use. Only append new ones to preserve stored mappings.</p>
+    <?php
+}
+
+function avian_facets_maps_lock_field_render() {
+    $locked = avian_facets_maps_locked();
+    ?>
+    <label>
+        <input
+            type="checkbox"
+            name="<?php echo esc_attr( AVIAN_FACETS_OPTION_MAPS_LOCKED ); ?>"
+            value="1"
+            <?php checked( $locked ); ?>
+        />
+        Lock facet map editing to prevent accidental reordering.
+    </label>
+    <p class="description">When locked, map fields become read-only and changes are ignored until you unlock and save.</p>
+    <?php
+}
+
+function avian_facets_render_map_textarea( $option_key, $placeholder, $description, $rows = 6 ) {
+    $value  = get_option( $option_key, '' );
+    $locked = avian_facets_maps_locked();
+    ?>
+    <textarea
+        name="<?php echo esc_attr( $option_key ); ?>"
+        id="<?php echo esc_attr( $option_key ); ?>"
+        rows="<?php echo esc_attr( (string) $rows ); ?>"
+        cols="60"
+        class="large-text code"
+        placeholder="<?php echo esc_attr( $placeholder ); ?>"
+        <?php echo $locked ? 'readonly' : ''; ?>
+    ><?php echo esc_textarea( $value ); ?></textarea>
+    <p class="description"><?php echo esc_html( $description ); ?></p>
+    <?php if ( $locked ) : ?>
+        <p class="description"><strong>Maps are locked.</strong> Unlock facet maps above and save before editing.</p>
+    <?php endif; ?>
+    <?php
+}
+
+function avian_facets_size_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_SIZE_MAP_RAW,
+        'e.g. tiny&#10;small&#10;medium',
+        'Enter one size slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_shape_primary_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW,
+        'e.g. slender&#10;broad&#10;stocky',
+        'Enter one body shape slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_shape_secondary_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW,
+        'e.g. short&#10;long&#10;forked',
+        'Enter one tail shape slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_pattern_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_PATTERN_MAP_RAW,
+        'e.g. solid&#10;spotted&#10;striped',
+        'Enter one pattern slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_trait_primary_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW,
+        'e.g. perching&#10;soaring&#10;wading',
+        'Enter one primary trait slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_trait_secondary_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW,
+        'e.g. vocal&#10;nocturnal&#10;diurnal',
+        'Enter one secondary trait slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_diet_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_DIET_MAP_RAW,
+        'e.g. carnivore&#10;insectivore&#10;omnivore',
+        'Enter one diet slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_call_type_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_CALL_TYPE_MAP_RAW,
+        'e.g. song&#10;whistle&#10;call',
+        'Enter one call type slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_behavior_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_BEHAVIOR_MAP_RAW,
+        'e.g. solitary&#10;social&#10;territorial',
+        'Enter one behavior slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function avian_facets_habitat_map_field_render() {
+    avian_facets_render_map_textarea(
+        AVIAN_FACETS_OPTION_HABITAT_MAP_RAW,
+        'e.g. forest&#10;woodland&#10;savanna',
+        'Enter one habitat slug per line or separate with commas. Leave blank to use the default list.'
+    );
 }
 
 function avian_facets_overview_section_intro() {
