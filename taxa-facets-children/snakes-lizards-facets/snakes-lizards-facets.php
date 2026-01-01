@@ -43,6 +43,17 @@ define( 'SNL_FACETS_OPTION_LABEL_MAP_RAW', 'snl_facets_label_map_raw' );
 define( 'SNL_FACETS_OPTION_UI_OVERRIDES', 'snl_facets_ui_overrides' );
 define( 'SNL_FACETS_OPTION_EXCLUDED_COLORS', 'snl_facets_excluded_colors' );
 define( 'SNL_FACETS_OPTION_COLOR_MAP_RAW', 'snl_facets_color_map_raw' );
+define( 'SNL_FACETS_OPTION_MAPS_LOCKED', 'snl_facets_maps_locked' );
+define( 'SNL_FACETS_OPTION_SIZE_MAP_RAW', 'snl_facets_size_map_raw' );
+define( 'SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW', 'snl_facets_shape_primary_map_raw' );
+define( 'SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW', 'snl_facets_shape_secondary_map_raw' );
+define( 'SNL_FACETS_OPTION_PATTERN_MAP_RAW', 'snl_facets_pattern_map_raw' );
+define( 'SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW', 'snl_facets_trait_primary_map_raw' );
+define( 'SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW', 'snl_facets_trait_secondary_map_raw' );
+define( 'SNL_FACETS_OPTION_DIET_MAP_RAW', 'snl_facets_diet_map_raw' );
+define( 'SNL_FACETS_OPTION_VENOMOUS_MAP_RAW', 'snl_facets_venomous_map_raw' );
+define( 'SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW', 'snl_facets_behavior_map_raw' );
+define( 'SNL_FACETS_OPTION_HABITAT_MAP_RAW', 'snl_facets_habitat_map_raw' );
 
 /**
  * Init after parent plugin loads.
@@ -100,6 +111,48 @@ function snl_facets_color_aliases() {
     );
 }
 
+function snl_facets_maps_locked() {
+    return (bool) get_option( SNL_FACETS_OPTION_MAPS_LOCKED, false );
+}
+
+function snl_facets_parse_slug_list( $raw ) {
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return array();
+    }
+
+    $parts = preg_split( '/[\r\n,]+/', $raw );
+    $slugs = array();
+
+    foreach ( $parts as $part ) {
+        $part = sanitize_key( trim( $part ) );
+        if ( $part !== '' ) {
+            $slugs[] = $part;
+        }
+    }
+
+    return array_values( array_unique( $slugs ) );
+}
+
+function snl_facets_build_enum_map( array $slugs ) {
+    $map = array();
+
+    foreach ( $slugs as $index => $slug ) {
+        $map[ $slug ] = $index + 1;
+    }
+
+    return $map;
+}
+
+function snl_facets_build_bitmask_map( array $slugs ) {
+    $map = array();
+
+    foreach ( $slugs as $index => $slug ) {
+        $map[ $slug ] = 1 << $index;
+    }
+
+    return $map;
+}
+
 function snl_facets_default_color_slugs() {
     return array(
         'red',
@@ -125,6 +178,115 @@ function snl_facets_default_color_slugs() {
     );
 }
 
+function snl_facets_default_size_slugs() {
+    return array(
+        'tiny',
+        'small',
+        'medium',
+        'large',
+        'very_large',
+    );
+}
+
+function snl_facets_default_shape_primary_slugs() {
+    return array(
+        'slender',
+        'robust',
+        'stocky',
+        'bulky',
+        'flattened',
+        'heavy_bodied',
+        'laterally_compressed',
+    );
+}
+
+function snl_facets_default_shape_secondary_slugs() {
+    return array(
+        'short',
+        'long',
+        'prehensile',
+        'reduced',
+        'clubbed',
+        'rattle',
+        'blunt',
+        'tapered',
+    );
+}
+
+function snl_facets_default_pattern_slugs() {
+    return array(
+        'solid',
+        'spotted',
+        'striped',
+        'banded',
+        'blotched',
+        'mottled',
+        'speckled',
+        'reticulated',
+    );
+}
+
+function snl_facets_default_trait_primary_slugs() {
+    return array(
+        'terrestrial',
+        'arboreal',
+        'fossorial',
+        'aquatic',
+        'semi_aquatic',
+        'saxicolous',
+    );
+}
+
+function snl_facets_default_trait_secondary_slugs() {
+    return array(
+        'diurnal',
+        'nocturnal',
+        'crepuscular',
+    );
+}
+
+function snl_facets_default_diet_slugs() {
+    return array(
+        'carnivore',
+        'insectivore',
+        'omnivore',
+        'herbivore',
+        'piscivore',
+        'mammals',
+        'birds',
+        'reptiles',
+        'amphibians',
+        'fish',
+        'eggs',
+        'invertebrates',
+    );
+}
+
+function snl_facets_default_venomous_slugs() {
+    return array(
+        'venomous',
+        'non_venomous',
+        'mildly_venomous',
+    );
+}
+
+function snl_facets_default_behavior_slugs() {
+    return array(
+        'constricting',
+        'venom_strike',
+        'tail_autotomy',
+        'gliding',
+        'chameleon_like',
+    );
+}
+
+function snl_facets_default_habitat_slugs() {
+    return array(
+        'montane',
+        'coastal',
+    );
+}
+
 function snl_facets_get_color_slugs() {
     $raw = get_option( SNL_FACETS_OPTION_COLOR_MAP_RAW, '' );
 
@@ -132,148 +294,152 @@ function snl_facets_get_color_slugs() {
         return snl_facets_default_color_slugs();
     }
 
-    $parts  = preg_split( '/[\r\n,]+/', $raw );
-    $colors = array();
-
-    foreach ( $parts as $part ) {
-        $part = sanitize_key( trim( $part ) );
-        if ( $part !== '' ) {
-            $colors[] = $part;
-        }
-    }
-
-    return array_values( array_unique( $colors ) );
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_get_color_map() {
     $slugs = snl_facets_get_color_slugs();
-    $map   = array();
+    return snl_facets_build_bitmask_map( $slugs );
+}
 
-    foreach ( $slugs as $index => $slug ) {
-        $map[ $slug ] = 1 << $index;
+function snl_facets_get_size_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_SIZE_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_size_slugs();
     }
 
-    return $map;
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_size_map() {
-    return array(
-        'tiny'       => 1,
-        'small'      => 2,
-        'medium'     => 3,
-        'large'      => 4,
-        'very_large' => 5,
-    );
+    return snl_facets_build_enum_map( snl_facets_get_size_slugs() );
+}
+
+function snl_facets_get_shape_primary_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_shape_primary_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_shape_primary_map() {
-    return array(
-        'slender'   => 1,
-        'robust'    => 2,
-        'stocky'    => 3,
-        'bulky'     => 4,
-        'flattened' => 5,
+    return snl_facets_build_enum_map( snl_facets_get_shape_primary_slugs() );
+}
 
-        // APPEND ONLY
-        'heavy_bodied'         => 6,
-        'laterally_compressed' => 7,
-    );
+function snl_facets_get_shape_secondary_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_shape_secondary_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_shape_secondary_map() {
-    return array(
-        'short'      => 1,
-        'long'       => 2,
-        'prehensile' => 3,
-        'reduced'    => 4,
-        'clubbed'    => 5,
-        'rattle'     => 6,
+    return snl_facets_build_enum_map( snl_facets_get_shape_secondary_slugs() );
+}
 
-        // APPEND ONLY
-        'blunt'      => 7,
-        'tapered'    => 8,
-    );
+function snl_facets_get_pattern_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_PATTERN_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_pattern_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_pattern_map() {
-    return array(
-        'solid'    => 1,
-        'spotted'  => 2,
-        'striped'  => 3,
-        'banded'   => 4,
-        'blotched' => 5,
-        'mottled'  => 6,
-        'speckled' => 7,
+    return snl_facets_build_enum_map( snl_facets_get_pattern_slugs() );
+}
 
-        // APPEND ONLY
-        'reticulated' => 8,
-    );
+function snl_facets_get_trait_primary_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_trait_primary_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_trait_primary_map() {
-    return array(
-        'terrestrial'  => 1,
-        'arboreal'     => 2,
-        'fossorial'    => 3,
-        'aquatic'      => 4,
-        'semi_aquatic' => 5,
-        'saxicolous'   => 6,
-    );
+    return snl_facets_build_enum_map( snl_facets_get_trait_primary_slugs() );
+}
+
+function snl_facets_get_trait_secondary_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_trait_secondary_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_trait_secondary_map() {
-    return array(
-        'diurnal'     => 1,
-        'nocturnal'   => 2,
-        'crepuscular' => 3,
-    );
+    return snl_facets_build_enum_map( snl_facets_get_trait_secondary_slugs() );
+}
+
+function snl_facets_get_diet_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_DIET_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_diet_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_diet_map() {
-    return array(
-        'carnivore'   => 1,
-        'insectivore' => 2,
-        'omnivore'    => 3,
-        'herbivore'   => 4,
-        'piscivore'   => 5,
+    return snl_facets_build_enum_map( snl_facets_get_diet_slugs() );
+}
 
-        // APPEND ONLY (snake prey / more specific)
-        'mammals'       => 6,
-        'birds'         => 7,
-        'reptiles'      => 8,
-        'amphibians'    => 9,
-        'fish'          => 10,
-        'eggs'          => 11,
-        'invertebrates' => 12,
-    );
+function snl_facets_get_venomous_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_VENOMOUS_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_venomous_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
 function snl_facets_venomous_map() {
-    return array(
-        'venomous'        => 1,
-        'non_venomous'    => 2,
-
-        // APPEND ONLY
-        'mildly_venomous' => 3,
-    );
+    return snl_facets_build_enum_map( snl_facets_get_venomous_slugs() );
 }
 
-function snl_facets_behavior_additions() {
-    return array(
-        // keep existing if any; only append bits not present
-        'constricting'   => 1 << 8,
-        'venom_strike'   => 1 << 9,
-        'tail_autotomy'  => 1 << 10,
-        'gliding'        => 1 << 11,
-        'chameleon_like' => 1 << 12,
-    );
+function snl_facets_get_behavior_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_behavior_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
 }
 
-function snl_facets_habitat_additions() {
-    return array(
-        'montane' => 1 << 9,
-        'coastal' => 1 << 10,
-    );
+function snl_facets_behavior_map() {
+    return snl_facets_build_bitmask_map( snl_facets_get_behavior_slugs() );
+}
+
+function snl_facets_get_habitat_slugs() {
+    $raw = get_option( SNL_FACETS_OPTION_HABITAT_MAP_RAW, '' );
+
+    if ( ! is_string( $raw ) || $raw === '' ) {
+        return snl_facets_default_habitat_slugs();
+    }
+
+    return snl_facets_parse_slug_list( $raw );
+}
+
+function snl_facets_habitat_map() {
+    return snl_facets_build_bitmask_map( snl_facets_get_habitat_slugs() );
 }
 
 /**
@@ -309,54 +475,42 @@ function snakes_lizards_facets_register_maps() {
      * SIZE (enum)
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_size_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_size_map();
-    } );
+    add_filter( 'taxa_facets_size_enum_map', 'snl_facets_provide_size_map', 5 );
 
     /**
      * ---------------------------------
      * SHAPE PRIMARY (enum) – body build / form
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_shape_primary_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_shape_primary_map();
-    } );
+    add_filter( 'taxa_facets_shape_primary_enum_map', 'snl_facets_provide_shape_primary_map', 5 );
 
     /**
      * ---------------------------------
      * SHAPE SECONDARY (enum) – tail feature/type
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_shape_secondary_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_shape_secondary_map();
-    } );
+    add_filter( 'taxa_facets_shape_secondary_enum_map', 'snl_facets_provide_shape_secondary_map', 5 );
 
     /**
      * ---------------------------------
      * PATTERN (enum)
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_pattern_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_pattern_map();
-    } );
+    add_filter( 'taxa_facets_pattern_enum_map', 'snl_facets_provide_pattern_map', 5 );
 
     /**
      * ---------------------------------
      * TRAIT PRIMARY (enum) – lifestyle/ecology
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_trait_primary_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_trait_primary_map();
-    } );
+    add_filter( 'taxa_facets_trait_primary_enum_map', 'snl_facets_provide_trait_primary_map', 5 );
 
     /**
      * ---------------------------------
      * TRAIT SECONDARY (enum) – activity pattern
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_trait_secondary_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_trait_secondary_map();
-    } );
+    add_filter( 'taxa_facets_trait_secondary_enum_map', 'snl_facets_provide_trait_secondary_map', 5 );
 
     /**
      * ---------------------------------
@@ -364,53 +518,28 @@ function snakes_lizards_facets_register_maps() {
      * ---------------------------------
      * Keep broad tokens for lizards; APPEND prey-type tokens for snakes.
      */
-    add_filter( 'taxa_facets_diet_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_diet_map();
-    } );
+    add_filter( 'taxa_facets_diet_enum_map', 'snl_facets_provide_diet_map', 5 );
 
     /**
      * ---------------------------------
      * VENOMOUS (enum)
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_venomous_enum_map', function( $defaults ) {
-        return $defaults + snl_facets_venomous_map();
-    } );
+    add_filter( 'taxa_facets_venomous_enum_map', 'snl_facets_provide_venomous_map', 5 );
 
     /**
      * ---------------------------------
      * BEHAVIOR (bitmask) – extend core map, but UI will not duplicate section
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_behavior_map', function( $defaults ) {
-        $additions = snl_facets_behavior_additions();
-
-        // Only append slugs that don't exist yet (safety).
-        foreach ( $additions as $slug => $bit ) {
-            if ( ! isset( $defaults[ $slug ] ) ) {
-                $defaults[ $slug ] = $bit;
-            }
-        }
-
-        return $defaults;
-    } );
+    add_filter( 'taxa_facets_behavior_map', 'snl_facets_provide_behavior_map', 5 );
 
     /**
      * ---------------------------------
      * HABITAT (bitmask) – extend core map, but UI will not duplicate section
      * ---------------------------------
      */
-    add_filter( 'taxa_facets_habitat_map', function( $defaults ) {
-        $additions = snl_facets_habitat_additions();
-
-        foreach ( $additions as $slug => $bit ) {
-            if ( ! isset( $defaults[ $slug ] ) ) {
-                $defaults[ $slug ] = $bit;
-            }
-        }
-
-        return $defaults;
-    } );
+    add_filter( 'taxa_facets_habitat_map', 'snl_facets_provide_habitat_map', 5 );
 }
 
 /**
@@ -1031,25 +1160,108 @@ function snl_facets_sanitize_excluded_colors( $value ) {
 }
 
 function snl_facets_sanitize_color_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_COLOR_MAP_RAW );
+}
+
+function snl_facets_sanitize_locked_map_raw( $value, $option_key ) {
+    if ( snl_facets_maps_locked() ) {
+        $existing = get_option( $option_key, '' );
+        return is_string( $existing ) ? $existing : '';
+    }
+
     if ( ! is_string( $value ) ) {
         return '';
     }
 
-    $parts  = preg_split( '/[\r\n,]+/', $value );
-    $colors = array();
+    return implode( "\n", snl_facets_parse_slug_list( $value ) );
+}
 
-    foreach ( $parts as $part ) {
-        $part = sanitize_key( trim( $part ) );
-        if ( $part !== '' && ! in_array( $part, $colors, true ) ) {
-            $colors[] = $part;
-        }
-    }
+function snl_facets_sanitize_maps_locked( $value ) {
+    return (bool) $value;
+}
 
-    return implode( "\n", $colors );
+function snl_facets_sanitize_size_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_SIZE_MAP_RAW );
+}
+
+function snl_facets_sanitize_shape_primary_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW );
+}
+
+function snl_facets_sanitize_shape_secondary_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW );
+}
+
+function snl_facets_sanitize_pattern_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_PATTERN_MAP_RAW );
+}
+
+function snl_facets_sanitize_trait_primary_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW );
+}
+
+function snl_facets_sanitize_trait_secondary_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW );
+}
+
+function snl_facets_sanitize_diet_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_DIET_MAP_RAW );
+}
+
+function snl_facets_sanitize_venomous_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_VENOMOUS_MAP_RAW );
+}
+
+function snl_facets_sanitize_behavior_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW );
+}
+
+function snl_facets_sanitize_habitat_map_raw( $value ) {
+    return snl_facets_sanitize_locked_map_raw( $value, SNL_FACETS_OPTION_HABITAT_MAP_RAW );
 }
 
 function snl_facets_provide_color_map( $colors ) {
     return snl_facets_get_color_map();
+}
+
+function snl_facets_provide_size_map( $defaults ) {
+    return snl_facets_size_map();
+}
+
+function snl_facets_provide_shape_primary_map( $defaults ) {
+    return snl_facets_shape_primary_map();
+}
+
+function snl_facets_provide_shape_secondary_map( $defaults ) {
+    return snl_facets_shape_secondary_map();
+}
+
+function snl_facets_provide_pattern_map( $defaults ) {
+    return snl_facets_pattern_map();
+}
+
+function snl_facets_provide_trait_primary_map( $defaults ) {
+    return snl_facets_trait_primary_map();
+}
+
+function snl_facets_provide_trait_secondary_map( $defaults ) {
+    return snl_facets_trait_secondary_map();
+}
+
+function snl_facets_provide_diet_map( $defaults ) {
+    return snl_facets_diet_map();
+}
+
+function snl_facets_provide_venomous_map( $defaults ) {
+    return snl_facets_venomous_map();
+}
+
+function snl_facets_provide_behavior_map( $defaults ) {
+    return snl_facets_behavior_map();
+}
+
+function snl_facets_provide_habitat_map( $defaults ) {
+    return snl_facets_habitat_map();
 }
 
 function snl_facets_filter_color_map( $colors ) {
@@ -1171,6 +1383,116 @@ function snakes_lizards_facets_register_settings() {
         )
     );
 
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_MAPS_LOCKED,
+        array(
+            'type'              => 'boolean',
+            'sanitize_callback' => 'snl_facets_sanitize_maps_locked',
+            'default'           => false,
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_SIZE_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_size_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_shape_primary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_shape_secondary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_PATTERN_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_pattern_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_trait_primary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_trait_secondary_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_DIET_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_diet_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_VENOMOUS_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_venomous_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_behavior_map_raw',
+            'default'           => '',
+        )
+    );
+
+    register_setting(
+        'snl_facets_labels_group',
+        SNL_FACETS_OPTION_HABITAT_MAP_RAW,
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'snl_facets_sanitize_habitat_map_raw',
+            'default'           => '',
+        )
+    );
+
     add_settings_section(
         'snl_facets_labels_section',
         'Facet Label Remapping',
@@ -1222,6 +1544,101 @@ function snakes_lizards_facets_register_settings() {
         'snl_facets_color_exclusions_field_render',
         'snl-facet-labels',
         'snl_facets_color_section'
+    );
+
+    add_settings_section(
+        'snl_facets_map_section',
+        'Facet Map Controls',
+        'snl_facets_map_section_intro',
+        'snl-facet-labels'
+    );
+
+    add_settings_field(
+        'snl_facets_maps_lock_field',
+        'Lock Facet Maps',
+        'snl_facets_maps_lock_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_size_map_field',
+        'Size Map',
+        'snl_facets_size_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_shape_primary_map_field',
+        'Shape Primary Map',
+        'snl_facets_shape_primary_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_shape_secondary_map_field',
+        'Shape Secondary Map',
+        'snl_facets_shape_secondary_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_pattern_map_field',
+        'Pattern Map',
+        'snl_facets_pattern_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_trait_primary_map_field',
+        'Trait Primary Map',
+        'snl_facets_trait_primary_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_trait_secondary_map_field',
+        'Trait Secondary Map',
+        'snl_facets_trait_secondary_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_diet_map_field',
+        'Diet Map',
+        'snl_facets_diet_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_venomous_map_field',
+        'Venomous Map',
+        'snl_facets_venomous_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_behavior_map_field',
+        'Behavior Map',
+        'snl_facets_behavior_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
+    );
+
+    add_settings_field(
+        'snl_facets_habitat_map_field',
+        'Habitat Map',
+        'snl_facets_habitat_map_field_render',
+        'snl-facet-labels',
+        'snl_facets_map_section'
     );
 
     add_settings_section(
@@ -1333,6 +1750,7 @@ function snl_facets_color_section_intro() {
 
 function snl_facets_color_map_field_render() {
     $value = get_option( SNL_FACETS_OPTION_COLOR_MAP_RAW, '' );
+    $locked = snl_facets_maps_locked();
     ?>
     <textarea
         name="<?php echo esc_attr( SNL_FACETS_OPTION_COLOR_MAP_RAW ); ?>"
@@ -1341,8 +1759,12 @@ function snl_facets_color_map_field_render() {
         cols="60"
         class="large-text code"
         placeholder="e.g. red&#10;orange&#10;yellow"
+        <?php echo $locked ? 'readonly' : ''; ?>
     ><?php echo esc_textarea( $value ); ?></textarea>
     <p class="description">Enter one color slug per line or separate with commas. Leave blank to use the default list.</p>
+    <?php if ( $locked ) : ?>
+        <p class="description"><strong>Maps are locked.</strong> Unlock facet maps below and save before editing this list.</p>
+    <?php endif; ?>
     <?php
 }
 
@@ -1361,6 +1783,129 @@ function snl_facets_color_exclusions_field_render() {
     <?php
 }
 
+function snl_facets_map_section_intro() {
+    ?>
+    <p>Define the slugs and ordering for each facet map. These values determine enum IDs and bit positions.</p>
+    <p><strong>Important:</strong> Do not reorder existing values once in use. Only append new ones to preserve stored mappings.</p>
+    <?php
+}
+
+function snl_facets_maps_lock_field_render() {
+    $locked = snl_facets_maps_locked();
+    ?>
+    <label>
+        <input
+            type="checkbox"
+            name="<?php echo esc_attr( SNL_FACETS_OPTION_MAPS_LOCKED ); ?>"
+            value="1"
+            <?php checked( $locked ); ?>
+        />
+        Lock facet map editing to prevent accidental reordering.
+    </label>
+    <p class="description">When locked, map fields become read-only and changes are ignored until you unlock and save.</p>
+    <?php
+}
+
+function snl_facets_render_map_textarea( $option_key, $placeholder, $description, $rows = 6 ) {
+    $value  = get_option( $option_key, '' );
+    $locked = snl_facets_maps_locked();
+    ?>
+    <textarea
+        name="<?php echo esc_attr( $option_key ); ?>"
+        id="<?php echo esc_attr( $option_key ); ?>"
+        rows="<?php echo esc_attr( (string) $rows ); ?>"
+        cols="60"
+        class="large-text code"
+        placeholder="<?php echo esc_attr( $placeholder ); ?>"
+        <?php echo $locked ? 'readonly' : ''; ?>
+    ><?php echo esc_textarea( $value ); ?></textarea>
+    <p class="description"><?php echo esc_html( $description ); ?></p>
+    <?php if ( $locked ) : ?>
+        <p class="description"><strong>Maps are locked.</strong> Unlock facet maps above and save before editing.</p>
+    <?php endif; ?>
+    <?php
+}
+
+function snl_facets_size_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_SIZE_MAP_RAW,
+        'e.g. tiny&#10;small&#10;medium',
+        'Enter one size slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_shape_primary_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW,
+        'e.g. slender&#10;robust&#10;stocky',
+        'Enter one body form slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_shape_secondary_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW,
+        'e.g. short&#10;long&#10;prehensile',
+        'Enter one tail form slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_pattern_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_PATTERN_MAP_RAW,
+        'e.g. solid&#10;spotted&#10;striped',
+        'Enter one pattern slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_trait_primary_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW,
+        'e.g. terrestrial&#10;arboreal&#10;fossorial',
+        'Enter one primary trait slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_trait_secondary_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW,
+        'e.g. diurnal&#10;nocturnal&#10;crepuscular',
+        'Enter one secondary trait slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_diet_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_DIET_MAP_RAW,
+        'e.g. carnivore&#10;insectivore&#10;omnivore',
+        'Enter one diet slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_venomous_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_VENOMOUS_MAP_RAW,
+        'e.g. venomous&#10;non_venomous&#10;mildly_venomous',
+        'Enter one venomous slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_behavior_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_BEHAVIOR_MAP_RAW,
+        'e.g. constricting&#10;venom_strike&#10;tail_autotomy',
+        'Enter one behavior slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
+function snl_facets_habitat_map_field_render() {
+    snl_facets_render_map_textarea(
+        SNL_FACETS_OPTION_HABITAT_MAP_RAW,
+        'e.g. montane&#10;coastal',
+        'Enter one habitat slug per line or separate with commas. Leave blank to use the default list.'
+    );
+}
+
 function snl_facets_overview_section_intro() {
     ?>
     <p>These are the facet maps and aliases this plugin contributes on top of the core Taxonomy API plugin.</p>
@@ -1371,19 +1916,19 @@ function snl_facets_overview_field_render() {
     $excluded_colors = snl_facets_get_excluded_colors();
     $color_map = snl_facets_filter_color_map( snl_facets_get_color_map() );
     $sections = array(
-        'Color map'         => $color_map,
-        'Color aliases'      => snl_facets_color_aliases(),
-        'Size enum'          => snl_facets_size_map(),
-        'Shape primary'      => snl_facets_shape_primary_map(),
-        'Shape secondary'    => snl_facets_shape_secondary_map(),
-        'Pattern enum'       => snl_facets_pattern_map(),
-        'Trait primary'      => snl_facets_trait_primary_map(),
-        'Trait secondary'    => snl_facets_trait_secondary_map(),
-        'Diet enum'          => snl_facets_diet_map(),
-        'Venomous enum'      => snl_facets_venomous_map(),
-        'Behavior additions' => snl_facets_behavior_additions(),
-        'Habitat additions'  => snl_facets_habitat_additions(),
-        'Excluded colors'    => empty( $excluded_colors ) ? array() : array_combine( $excluded_colors, $excluded_colors ),
+        'Color map'        => $color_map,
+        'Color aliases'    => snl_facets_color_aliases(),
+        'Size enum'        => snl_facets_size_map(),
+        'Shape primary'    => snl_facets_shape_primary_map(),
+        'Shape secondary'  => snl_facets_shape_secondary_map(),
+        'Pattern enum'     => snl_facets_pattern_map(),
+        'Trait primary'    => snl_facets_trait_primary_map(),
+        'Trait secondary'  => snl_facets_trait_secondary_map(),
+        'Diet enum'        => snl_facets_diet_map(),
+        'Venomous enum'    => snl_facets_venomous_map(),
+        'Behavior map'     => snl_facets_behavior_map(),
+        'Habitat map'      => snl_facets_habitat_map(),
+        'Excluded colors'  => empty( $excluded_colors ) ? array() : array_combine( $excluded_colors, $excluded_colors ),
     );
     ?>
     <div style="max-width: 900px;">
