@@ -4,7 +4,7 @@
     Plugin URI: https://www.aviandiscovery.com
     Description: Lightweight iNaturalist taxonomy ingestor with optional AI enrichment.
     Author: Brandon Bartlett
-    Version: 3.0.9
+    Version: 3.0.10
     Author URI: https://www.aviandiscovery.com
 */
 
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'TAXA_API_VERSION', '3.0.0' );
+define( 'TAXA_API_VERSION', '3.0.10' );
 define( 'TAXA_API_PLUGIN_FILE', __FILE__ );
 define( 'TAXA_API_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TAXA_API_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -24,6 +24,7 @@ require_once TAXA_API_PLUGIN_DIR . 'includes/class-taxonomy-importer.php';
 require_once TAXA_API_PLUGIN_DIR . 'includes/admin-settings.php';
 // Facet engine
 require_once TAXA_API_PLUGIN_DIR . 'includes/facets.php';
+require_once TAXA_API_PLUGIN_DIR . 'includes/facets-dynamic.php';
 require_once TAXA_API_PLUGIN_DIR . 'includes/facets-frontend.php';
 require_once TAXA_API_PLUGIN_DIR . 'includes/facets-admin.php';
 

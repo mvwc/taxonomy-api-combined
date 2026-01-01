@@ -727,7 +727,7 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
     $atts = shortcode_atts(
         array(
             'taxa_rank' => '',   // optional override of default rank
-            'scope'     => '',   // child plugins can use this (e.g. "snakes", "lizards", "trees")
+            'scope'     => '',   // optional scope key for map sets
         ),
         $atts,
         'taxa_explorer'
@@ -740,10 +740,10 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
     }
 
     /**
-     * Let child plugins provide locked facets as a JSON string.
+     * Let plugins provide locked facets as a JSON string.
      *
-     * Example JSON (child plugin builds this):
-     *   {"group":["snakes-serpentes"]}
+     * Example JSON:
+     *   {"group":["example-group"]}
      *   {"growth_form":["tree"]}
      */
     $locked_facets_json = apply_filters(
@@ -753,7 +753,22 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
     );
 
 
-    // 1) Pull maps from the generic helpers (these are filtered by the child plugin).
+    $previous_scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    $resolved_scope = '';
+    if ( function_exists( 'taxa_facets_sanitize_scope_value' ) ) {
+        $resolved_scope = taxa_facets_sanitize_scope_value( $atts['scope'] );
+    }
+    if ( '' === $resolved_scope && function_exists( 'taxa_facets_get_shortcode_scope' ) ) {
+        $resolved_scope = taxa_facets_get_shortcode_scope();
+    }
+    if ( $resolved_scope !== '' ) {
+        $atts['scope'] = $resolved_scope;
+    }
+    if ( $resolved_scope !== '' && function_exists( 'taxa_facets_set_current_scope' ) ) {
+        taxa_facets_set_current_scope( $resolved_scope );
+    }
+
+    // 1) Pull maps from the generic helpers (these are filtered by dynamic map options).
     $size_map       = taxa_facets_get_size_enum_map();      // slug => int
     $color_map      = taxa_facets_get_color_map();          // slug => bit
     $habitat_map    = taxa_facets_get_habitat_map();        // slug => bit
@@ -794,8 +809,7 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
     }
 
     // 3) Base UI config (parent plugin default).
-    //    AvianDiscovery (or any domain child plugin) can override this structure
-    //    via the `taxa_facets_frontend_options` filter.
+    //    Plugins can override this structure via the `taxa_facets_frontend_options` filter.
     $ui_config = array(
         'size'      => array(
             'label'   => __( 'Size similar to a', 'taxonomy-api' ),
@@ -824,7 +838,7 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
     );
 
     /**
-     * Allow child plugins (e.g. AvianDiscovery) to:
+     * Allow plugins to:
      *  - Reorder or remove options.
      *  - Change labels (e.g., "Forests & Woodlands" vs "forest").
      *  - Hide sections entirely.
@@ -848,7 +862,7 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
      */
     $ui_config = apply_filters( 'taxa_facets_frontend_options', $ui_config );
 
-    // Guard so notices don’t explode if a child plugin removes a block.
+    // Guard so notices don’t explode if a plugin removes a block.
     $size_cfg      = isset( $ui_config['size'] )      ? $ui_config['size']      : null;
     $colors_cfg    = isset( $ui_config['colors'] )    ? $ui_config['colors']    : null;
     $habitats_cfg  = isset( $ui_config['habitats'] )  ? $ui_config['habitats']  : null;
@@ -890,17 +904,17 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
     );
 
     /**
-    * Allow child plugins to adjust the taxa dropdown options.
+    * Allow plugins to adjust the taxa dropdown options.
     *
     * @param array $taxa_options List of [ 'value' => 'family', 'label' => 'Family' ].
-    * @param array $atts         Shortcode attributes (incl. 'scope' for snakes / lizards).
+    * @param array $atts         Shortcode attributes (incl. 'scope' for scoped views).
     */
     $taxa_options = apply_filters( 'taxa_facets_taxa_dropdown_options', $taxa_options, $atts );
 
     // Default taxa rank (whatever you already have here).
     $default_taxa_rank = apply_filters( 'taxa_facets_default_taxa_rank', '' );
 
-    // 🔍 Search placeholder – child plugins can override.
+    // 🔍 Search placeholder – plugins can override.
     $search_placeholder = apply_filters(
         'taxa_facets_search_placeholder',
         __( 'Search...', 'taxonomy-api' ), // parent default
@@ -1151,7 +1165,13 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
 
     </div>
     <?php
-    return ob_get_clean();
+    $output = ob_get_clean();
+
+    if ( function_exists( 'taxa_facets_set_current_scope' ) ) {
+        taxa_facets_set_current_scope( $previous_scope );
+    }
+
+    return $output;
 }
 
 add_shortcode( 'taxa_explorer', 'taxa_facets_explorer_shortcode' );

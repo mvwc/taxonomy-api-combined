@@ -40,21 +40,22 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 
 function taxa_facets_get_color_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array(); // Core is intentionally empty / generic.
-
 
         /**
          * Filter the color facet map.
          *
-         * @param array $defaults slug => bit
+         * @param array  $defaults slug => bit
+         * @param string $scope    Optional scope key.
          */
-        $map = apply_filters( 'taxa_facets_color_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_color_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 /**
@@ -247,14 +248,15 @@ function taxa_build_color_mask( $color_slugs ) {
  */
 
 function taxa_facets_get_call_type_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array(); // Core is intentionally empty / generic.
-        $map      = apply_filters( 'taxa_facets_call_type_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_call_type_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_build_call_type_mask( $types ) {
@@ -272,14 +274,15 @@ function taxa_build_call_type_mask( $types ) {
 }
 
 function taxa_facets_get_behavior_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array(); // Core is intentionally empty / generic.
-        $map      = apply_filters( 'taxa_facets_behavior_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_behavior_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_build_behavior_mask( $behaviors ) {
@@ -297,14 +300,15 @@ function taxa_build_behavior_mask( $behaviors ) {
 }
 
 function taxa_facets_get_habitat_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array(); // Core is intentionally empty / generic.
-        $map      = apply_filters( 'taxa_facets_habitat_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_habitat_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_build_habitat_mask( $habitats ) {
@@ -328,14 +332,15 @@ function taxa_build_habitat_mask( $habitats ) {
  */
 
 function taxa_facets_get_size_enum_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array();
-        $map      = apply_filters( 'taxa_facets_size_enum_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_size_enum_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_map_size_params( $tokens ) {
@@ -353,14 +358,15 @@ function taxa_map_size_params( $tokens ) {
 }
 
 function taxa_facets_get_shape_primary_enum_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array();
-        $map      = apply_filters( 'taxa_facets_shape_primary_enum_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_shape_primary_enum_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_map_shape_primary_params( $tokens ) {
@@ -378,14 +384,15 @@ function taxa_map_shape_primary_params( $tokens ) {
 }
 
 function taxa_facets_get_shape_secondary_enum_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array();
-        $map      = apply_filters( 'taxa_facets_shape_secondary_enum_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_shape_secondary_enum_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_map_shape_secondary_params( $tokens ) {
@@ -408,14 +415,15 @@ function taxa_map_shape_secondary_params( $tokens ) {
 }
 
 function taxa_facets_get_pattern_enum_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array();
-        $map      = apply_filters( 'taxa_facets_pattern_enum_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_pattern_enum_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_map_pattern_params( $tokens ) {
@@ -433,14 +441,15 @@ function taxa_map_pattern_params( $tokens ) {
 }
 
 function taxa_facets_get_trait_primary_enum_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array();
-        $map      = apply_filters( 'taxa_facets_trait_primary_enum_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_trait_primary_enum_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_map_trait_primary_params( $tokens ) {
@@ -458,14 +467,15 @@ function taxa_map_trait_primary_params( $tokens ) {
 }
 
 function taxa_facets_get_trait_secondary_enum_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array();
-        $map      = apply_filters( 'taxa_facets_trait_secondary_enum_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_trait_secondary_enum_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_map_trait_secondary_params( $tokens ) {
@@ -483,14 +493,15 @@ function taxa_map_trait_secondary_params( $tokens ) {
 }
 
 function taxa_facets_get_diet_enum_map() {
-    static $map = null;
+    static $maps = array();
 
-    if ( null === $map ) {
+    $scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    if ( ! isset( $maps[ $scope ] ) ) {
         $defaults = array();
-        $map      = apply_filters( 'taxa_facets_diet_enum_map', $defaults );
+        $maps[ $scope ] = apply_filters( 'taxa_facets_diet_enum_map', $defaults, $scope );
     }
 
-    return $map;
+    return $maps[ $scope ];
 }
 
 function taxa_map_diet_params( $tokens ) {
