@@ -1936,7 +1936,10 @@ function avian_facets_handle_gpt_seed_maps() {
     $prompt        = avian_facets_build_site_focus_prompt( $focus_keyword );
     $response      = get_gpt_response( $prompt, 'gpt-4o-mini' );
 
+    error_log( '[AVIAN FACETS][GPT SEED] Prompt: ' . $prompt );
+
     if ( ! $response ) {
+        error_log( '[AVIAN FACETS][GPT SEED] Empty response.' );
         wp_redirect( add_query_arg(
             array(
                 'page'                      => 'avian-facet-labels',
@@ -1948,6 +1951,7 @@ function avian_facets_handle_gpt_seed_maps() {
     }
 
     $raw = trim( (string) $response );
+    error_log( '[AVIAN FACETS][GPT SEED] Raw response: ' . $raw );
     if ( strpos( $raw, '```' ) === 0 ) {
         $raw = preg_replace( '#^```(?:json)?#i', '', $raw );
         $raw = preg_replace( '#```$#', '', $raw );
