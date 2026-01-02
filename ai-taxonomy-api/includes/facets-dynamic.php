@@ -28,6 +28,7 @@ define( 'TAXA_FACETS_OPTION_SHORTCODE_SCOPE', 'taxa_facets_shortcode_scope' );
 define( 'TAXA_FACETS_OPTION_MAP_SCOPE', 'taxa_facets_map_scope' );
 define( 'TAXA_FACETS_OPTION_SCOPE_LIST', 'taxa_facets_scope_list' );
 define( 'TAXA_FACETS_OPTION_SEED_PROMPT', 'taxa_facets_seed_prompt' );
+define( 'TAXA_FACETS_OPTION_SELECTED_RANK', 'taxa_facets_selected_rank' );
 
 /**
  * Current scope (used for scoped map lookups).
@@ -79,6 +80,10 @@ function taxa_facets_get_admin_rank() {
         return '';
     }
 
+    if ( $rank === '' ) {
+        $rank = sanitize_key( (string) get_option( TAXA_FACETS_OPTION_SELECTED_RANK, '' ) );
+    }
+
     return in_array( $rank, $available, true ) ? $rank : '';
 }
 
@@ -125,6 +130,37 @@ function taxa_facets_get_scope_options_by_rank( $rank = '' ) {
     }
 
     return $scopes;
+}
+
+function taxa_facets_clear_ranked_scopes( $rank ) {
+    $rank = sanitize_key( $rank );
+    if ( $rank === '' ) {
+        return;
+    }
+
+    $scopes = taxa_facets_get_scope_options_by_rank( $rank );
+    if ( empty( $scopes ) ) {
+        return;
+    }
+
+    $map_options = array(
+        TAXA_FACETS_OPTION_COLOR_MAP_RAW,
+        TAXA_FACETS_OPTION_SIZE_MAP_RAW,
+        TAXA_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW,
+        TAXA_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW,
+        TAXA_FACETS_OPTION_PATTERN_MAP_RAW,
+        TAXA_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW,
+        TAXA_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW,
+        TAXA_FACETS_OPTION_DIET_MAP_RAW,
+        TAXA_FACETS_OPTION_BEHAVIOR_MAP_RAW,
+        TAXA_FACETS_OPTION_HABITAT_MAP_RAW,
+    );
+
+    foreach ( array_keys( $scopes ) as $scope ) {
+        foreach ( $map_options as $option_key ) {
+            delete_option( taxa_facets_get_scoped_option_key( $option_key, $scope ) );
+        }
+    }
 }
 
 function taxa_facets_allowed_scopes() {
@@ -1276,9 +1312,17 @@ function taxa_facets_render_settings_page() {
     $current_rank    = taxa_facets_get_admin_rank();
     $scopes          = $current_rank !== '' ? taxa_facets_get_scope_options_by_rank( $current_rank ) : array();
     $current_scope   = taxa_facets_get_admin_scope();
+    if ( $current_rank !== '' ) {
+        update_option( TAXA_FACETS_OPTION_SELECTED_RANK, $current_rank );
+    }
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Taxa Facets', 'taxonomy-api' ); ?></h1>
+        <?php if ( isset( $_GET['taxa_facets_clear_status'] ) && 'success' === sanitize_text_field( wp_unslash( $_GET['taxa_facets_clear_status'] ) ) ) : ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php esc_html_e( 'Saved rank selection cleared and scoped facet maps removed.', 'taxonomy-api' ); ?></p>
+            </div>
+        <?php endif; ?>
         <form method="get" style="margin: 16px 0;">
             <input type="hidden" name="page" value="taxa-facet-maps" />
             <label for="taxa_facets_rank_select" style="margin-right: 8px;">
@@ -1305,6 +1349,25 @@ function taxa_facets_render_settings_page() {
             </select>
             <?php submit_button( __( 'Load Scope', 'taxonomy-api' ), 'secondary', '', false ); ?>
         </form>
+        <?php if ( $current_rank !== '' ) : ?>
+            <div class="notice notice-warning">
+                <p><?php esc_html_e( 'Clearing the rank will remove all stored facet maps for scopes under this rank.', 'taxonomy-api' ); ?></p>
+                <p>
+                    <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url(
+                        add_query_arg(
+                            array(
+                                'action' => 'taxa_facets_clear_rank',
+                                'rank'   => $current_rank,
+                            ),
+                            admin_url( 'admin-post.php' )
+                        ),
+                        'taxa_facets_clear_rank'
+                    ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Clear the saved rank and delete all scoped facet maps for it?', 'taxonomy-api' ) ); ?>');">
+                        <?php esc_html_e( 'Clear Rank', 'taxonomy-api' ); ?>
+                    </a>
+                </p>
+            </div>
+        <?php endif; ?>
         <?php if ( empty( $available_ranks ) ) : ?>
             <div class="notice notice-warning">
                 <p><?php esc_html_e( 'No ranked taxa were found. Import taxa with rank metadata to configure scoped facets.', 'taxonomy-api' ); ?></p>
@@ -1620,6 +1683,35 @@ function taxa_facets_handle_gpt_seed_maps() {
     exit;
 }
 add_action( 'admin_post_taxa_facets_seed_maps', 'taxa_facets_handle_gpt_seed_maps' );
+
+add_action( 'admin_post_taxa_facets_clear_rank', 'taxa_facets_handle_clear_rank' );
+function taxa_facets_handle_clear_rank() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'You do not have permission to perform this action.', 'taxonomy-api' ) );
+    }
+
+    check_admin_referer( 'taxa_facets_clear_rank' );
+
+    $rank = '';
+    if ( isset( $_GET['rank'] ) ) {
+        $rank = sanitize_key( wp_unslash( $_GET['rank'] ) );
+    }
+
+    $rank = taxa_facets_get_admin_rank() !== '' ? $rank : '';
+    taxa_facets_clear_ranked_scopes( $rank );
+    delete_option( TAXA_FACETS_OPTION_SELECTED_RANK );
+
+    wp_safe_redirect(
+        add_query_arg(
+            array(
+                'page'                     => 'taxa-facet-maps',
+                'taxa_facets_clear_status' => 'success',
+            ),
+            admin_url( 'admin.php' )
+        )
+    );
+    exit;
+}
 
 function taxa_facets_seed_maps_admin_notice() {
     if ( ! isset( $_GET['page'], $_GET['taxa_facets_seed_status'] ) || $_GET['page'] !== 'taxa-facet-maps' ) {
