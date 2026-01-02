@@ -505,6 +505,12 @@ public function build_facets_for_post( $post_id ) {
     }
 
     $post_id = (int) $post_id;
+    $previous_scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    $resolved_scope = '';
+
+    if ( function_exists( 'apply_filters' ) ) {
+        $resolved_scope = apply_filters( 'taxa_facets_scope_for_post', '', $post_id );
+    }
 
     //
     // --- RAW META INPUTS (NEW SCHEMA) --------------------------------
@@ -563,6 +569,52 @@ public function build_facets_for_post( $post_id ) {
     $call_type_values = $normalize_multi( $call_type_meta );
     $behavior_values  = $normalize_multi( $behavior_meta );
     $habitat_values   = $normalize_multi( $habitat_meta );
+
+    if (
+        '' === $resolved_scope
+        && function_exists( 'taxa_facets_allowed_scopes' )
+        && function_exists( 'taxa_facets_get_scoped_option_value' )
+        && function_exists( 'taxa_facets_parse_slug_list' )
+    ) {
+        $facet_slugs = array_filter( array_merge(
+            array( $size_slug, $shape_primary_slug, $shape_secondary_slug, $pattern_slug, $trait_primary_slug, $trait_secondary_slug ),
+            $color_values,
+            $call_type_values,
+            $behavior_values,
+            $habitat_values,
+            $normalize_multi( $diet_meta )
+        ) );
+
+        $map_option_keys = array(
+            defined( 'TAXA_FACETS_OPTION_COLOR_MAP_RAW' ) ? TAXA_FACETS_OPTION_COLOR_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_SIZE_MAP_RAW' ) ? TAXA_FACETS_OPTION_SIZE_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW' ) ? TAXA_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW' ) ? TAXA_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_PATTERN_MAP_RAW' ) ? TAXA_FACETS_OPTION_PATTERN_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW' ) ? TAXA_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW' ) ? TAXA_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_DIET_MAP_RAW' ) ? TAXA_FACETS_OPTION_DIET_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_BEHAVIOR_MAP_RAW' ) ? TAXA_FACETS_OPTION_BEHAVIOR_MAP_RAW : '',
+            defined( 'TAXA_FACETS_OPTION_HABITAT_MAP_RAW' ) ? TAXA_FACETS_OPTION_HABITAT_MAP_RAW : '',
+        );
+
+        $map_option_keys = array_filter( $map_option_keys );
+
+        foreach ( taxa_facets_allowed_scopes() as $scope ) {
+            foreach ( $map_option_keys as $option_key ) {
+                $raw_slugs = taxa_facets_get_scoped_option_value( $option_key, $scope );
+                $slugs = taxa_facets_parse_slug_list( $raw_slugs );
+                if ( array_intersect( $facet_slugs, $slugs ) ) {
+                    $resolved_scope = $scope;
+                    break 2;
+                }
+            }
+        }
+    }
+
+    if ( $resolved_scope !== '' && function_exists( 'taxa_facets_set_current_scope' ) ) {
+        taxa_facets_set_current_scope( $resolved_scope );
+    }
 
     //
     // --- Diet: treat as multi but store as ONE enum -------------------
@@ -659,6 +711,13 @@ public function build_facets_for_post( $post_id ) {
     // --- Save to DB ----------------------------------------------------
     //
     taxa_facets_update_row( $post_id, $facets );
+
+    if (
+        $previous_scope !== $resolved_scope
+        && function_exists( 'taxa_facets_set_current_scope' )
+    ) {
+        taxa_facets_set_current_scope( $previous_scope );
+    }
 }
 
 
