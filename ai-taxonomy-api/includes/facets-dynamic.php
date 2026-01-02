@@ -28,6 +28,7 @@ define( 'TAXA_FACETS_OPTION_SHORTCODE_SCOPE', 'taxa_facets_shortcode_scope' );
 define( 'TAXA_FACETS_OPTION_MAP_SCOPE', 'taxa_facets_map_scope' );
 define( 'TAXA_FACETS_OPTION_SCOPE_LIST', 'taxa_facets_scope_list' );
 define( 'TAXA_FACETS_OPTION_SEED_PROMPT', 'taxa_facets_seed_prompt' );
+define( 'TAXA_FACETS_OPTION_SELECTED_RANK', 'taxa_facets_selected_rank' );
 
 /**
  * Current scope (used for scoped map lookups).
@@ -40,9 +41,130 @@ function taxa_facets_get_current_scope() {
     return isset( $GLOBALS['taxa_facets_current_scope'] ) ? (string) $GLOBALS['taxa_facets_current_scope'] : '';
 }
 
+function taxa_facets_get_available_scope_ranks() {
+    global $wpdb;
+
+    $rows = $wpdb->get_col(
+        "SELECT DISTINCT LOWER(pm.meta_value)
+         FROM {$wpdb->postmeta} pm
+         INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+         WHERE pm.meta_key = 'rank'
+           AND pm.meta_value <> ''
+           AND p.post_status = 'publish'
+           AND p.post_type = 'post'"
+    );
+
+    $ranks = array();
+    foreach ( $rows as $rank ) {
+        $rank = sanitize_key( $rank );
+        if ( $rank !== '' ) {
+            $ranks[ $rank ] = true;
+        }
+    }
+
+    return array_keys( $ranks );
+}
+
+function taxa_facets_get_admin_rank() {
+    if ( ! is_admin() ) {
+        return '';
+    }
+
+    $rank = '';
+    if ( isset( $_GET['rank'] ) ) {
+        $rank = sanitize_key( wp_unslash( $_GET['rank'] ) );
+    }
+
+    $available = taxa_facets_get_available_scope_ranks();
+    if ( empty( $available ) ) {
+        return '';
+    }
+
+    if ( $rank === '' ) {
+        $rank = sanitize_key( (string) get_option( TAXA_FACETS_OPTION_SELECTED_RANK, '' ) );
+    }
+
+    return in_array( $rank, $available, true ) ? $rank : '';
+}
+
+function taxa_facets_get_scope_options_by_rank( $rank = '' ) {
+    global $wpdb;
+
+    $rank = sanitize_key( $rank );
+    $rank_sql = '';
+    $params   = array();
+    if ( $rank !== '' ) {
+        $rank_sql = ' AND LOWER(pm.meta_value) = %s';
+        $params[] = $rank;
+    }
+
+    $query = "
+        SELECT DISTINCT p.ID
+        FROM {$wpdb->posts} p
+        INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID
+        WHERE pm.meta_key = 'rank'
+          AND p.post_type = 'post'
+          AND p.post_status = 'publish'
+          {$rank_sql}
+        ORDER BY p.post_title ASC
+    ";
+
+    $prepared = $params ? $wpdb->prepare( $query, $params ) : $query;
+    $post_ids = $wpdb->get_col( $prepared );
+
+    $scopes = array();
+
+    foreach ( $post_ids as $post_id ) {
+        $post = get_post( $post_id );
+        if ( ! $post ) {
+            continue;
+        }
+
+        $slug = $post->post_name ? $post->post_name : sanitize_title( $post->post_title );
+        $slug = sanitize_key( $slug );
+        if ( '' === $slug ) {
+            continue;
+        }
+
+        $scopes[ $slug ] = $post->post_title;
+    }
+
+    return $scopes;
+}
+
+function taxa_facets_clear_ranked_scopes( $rank ) {
+    $rank = sanitize_key( $rank );
+    if ( $rank === '' ) {
+        return;
+    }
+
+    $scopes = taxa_facets_get_scope_options_by_rank( $rank );
+    if ( empty( $scopes ) ) {
+        return;
+    }
+
+    $map_options = array(
+        TAXA_FACETS_OPTION_COLOR_MAP_RAW,
+        TAXA_FACETS_OPTION_SIZE_MAP_RAW,
+        TAXA_FACETS_OPTION_SHAPE_PRIMARY_MAP_RAW,
+        TAXA_FACETS_OPTION_SHAPE_SECONDARY_MAP_RAW,
+        TAXA_FACETS_OPTION_PATTERN_MAP_RAW,
+        TAXA_FACETS_OPTION_TRAIT_PRIMARY_MAP_RAW,
+        TAXA_FACETS_OPTION_TRAIT_SECONDARY_MAP_RAW,
+        TAXA_FACETS_OPTION_DIET_MAP_RAW,
+        TAXA_FACETS_OPTION_BEHAVIOR_MAP_RAW,
+        TAXA_FACETS_OPTION_HABITAT_MAP_RAW,
+    );
+
+    foreach ( array_keys( $scopes ) as $scope ) {
+        foreach ( $map_options as $option_key ) {
+            delete_option( taxa_facets_get_scoped_option_key( $option_key, $scope ) );
+        }
+    }
+}
+
 function taxa_facets_allowed_scopes() {
-    $raw = get_option( TAXA_FACETS_OPTION_SCOPE_LIST, '' );
-    return taxa_facets_parse_slug_list( $raw );
+    return array_keys( taxa_facets_get_scope_options_by_rank() );
 }
 
 function taxa_facets_sanitize_scope_value( $value ) {
@@ -60,7 +182,7 @@ function taxa_facets_sanitize_scope_value( $value ) {
 }
 
 function taxa_facets_get_map_scope() {
-    return taxa_facets_sanitize_scope_value( get_option( TAXA_FACETS_OPTION_MAP_SCOPE, '' ) );
+    return taxa_facets_get_admin_scope();
 }
 
 function taxa_facets_get_shortcode_scope() {
@@ -69,6 +191,31 @@ function taxa_facets_get_shortcode_scope() {
 
 function taxa_facets_get_active_scope() {
     return taxa_facets_get_current_scope();
+}
+
+function taxa_facets_get_admin_scope() {
+    if ( ! is_admin() ) {
+        return '';
+    }
+
+    $scope = '';
+    if ( isset( $_GET['scope'] ) ) {
+        $scope = sanitize_key( wp_unslash( $_GET['scope'] ) );
+    }
+
+    $scope = taxa_facets_sanitize_scope_value( $scope );
+    $rank  = taxa_facets_get_admin_rank();
+    if ( $rank === '' ) {
+        return $scope;
+    }
+
+    $scopes = taxa_facets_get_scope_options_by_rank( $rank );
+    return isset( $scopes[ $scope ] ) ? $scope : '';
+}
+
+function taxa_facets_get_scope_label( $scope ) {
+    $scopes = taxa_facets_get_scope_options_by_rank();
+    return isset( $scopes[ $scope ] ) ? $scopes[ $scope ] : ucfirst( str_replace( '-', ' ', $scope ) );
 }
 
 function taxa_facets_get_scoped_option_key( $base_key, $scope ) {
@@ -628,7 +775,8 @@ function taxa_facets_adjust_trait_labels( $facets, $post_id ) {
  */
 add_action( 'admin_menu', 'taxa_facets_add_settings_page' );
 function taxa_facets_add_settings_page() {
-    add_options_page(
+    add_submenu_page(
+        'taxa-nav',
         __( 'Taxa Facets', 'taxonomy-api' ),
         __( 'Taxa Facets', 'taxonomy-api' ),
         'manage_options',
@@ -665,20 +813,8 @@ function taxa_facets_register_settings() {
 
     register_setting(
         'taxa_facets_maps_group',
-        TAXA_FACETS_OPTION_MAP_SCOPE,
-        array( 'sanitize_callback' => 'taxa_facets_sanitize_map_scope' )
-    );
-
-    register_setting(
-        'taxa_facets_maps_group',
         TAXA_FACETS_OPTION_SHORTCODE_SCOPE,
         array( 'sanitize_callback' => 'taxa_facets_sanitize_shortcode_scope' )
-    );
-
-    register_setting(
-        'taxa_facets_maps_group',
-        TAXA_FACETS_OPTION_SCOPE_LIST,
-        array( 'sanitize_callback' => 'taxa_facets_sanitize_scope_list' )
     );
 
     register_setting(
@@ -782,22 +918,6 @@ function taxa_facets_register_settings() {
         'taxa_facets_maps_lock',
         __( 'Lock map editing', 'taxonomy-api' ),
         'taxa_facets_maps_lock_field_render',
-        'taxa-facet-maps',
-        'taxa_facets_map_section'
-    );
-
-    add_settings_field(
-        'taxa_facets_scope_list',
-        __( 'Facet scopes', 'taxonomy-api' ),
-        'taxa_facets_scope_list_field_render',
-        'taxa-facet-maps',
-        'taxa_facets_map_section'
-    );
-
-    add_settings_field(
-        'taxa_facets_map_scope',
-        __( 'Facet map scope', 'taxonomy-api' ),
-        'taxa_facets_map_scope_field_render',
         'taxa-facet-maps',
         'taxa_facets_map_section'
     );
@@ -1029,36 +1149,6 @@ function taxa_facets_maps_lock_field_render() {
     <?php
 }
 
-function taxa_facets_scope_list_field_render() {
-    $value = get_option( TAXA_FACETS_OPTION_SCOPE_LIST, '' );
-    ?>
-    <textarea
-        name="<?php echo esc_attr( TAXA_FACETS_OPTION_SCOPE_LIST ); ?>"
-        id="<?php echo esc_attr( TAXA_FACETS_OPTION_SCOPE_LIST ); ?>"
-        rows="4"
-        class="large-text"
-        placeholder="<?php echo esc_attr__( "birds\nmammals\nplants", 'taxonomy-api' ); ?>"
-    ><?php echo esc_textarea( $value ); ?></textarea>
-    <p class="description"><?php esc_html_e( 'Optional scopes (one per line) used to manage multiple sets of facet maps.', 'taxonomy-api' ); ?></p>
-    <?php
-}
-
-function taxa_facets_map_scope_field_render() {
-    $current = taxa_facets_get_map_scope();
-    $scopes  = taxa_facets_allowed_scopes();
-    ?>
-    <select id="taxa_facets_map_scope" name="<?php echo esc_attr( TAXA_FACETS_OPTION_MAP_SCOPE ); ?>">
-        <option value=""><?php esc_html_e( 'Site-wide (no scope)', 'taxonomy-api' ); ?></option>
-        <?php foreach ( $scopes as $scope ) : ?>
-            <option value="<?php echo esc_attr( $scope ); ?>" <?php selected( $current, $scope ); ?>>
-                <?php echo esc_html( ucfirst( str_replace( '-', ' ', $scope ) ) ); ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-    <p class="description"><?php esc_html_e( 'Choose which scope you are editing or seeding with GPT.', 'taxonomy-api' ); ?></p>
-    <?php
-}
-
 function taxa_facets_render_map_textarea( $option_key, $placeholder, $description, $rows = 6 ) {
     $scope = taxa_facets_get_map_scope();
     $scoped_key = taxa_facets_get_scoped_option_key( $option_key, $scope );
@@ -1184,13 +1274,13 @@ function taxa_facets_shortcode_section_intro() {
 
 function taxa_facets_shortcode_scope_field_render() {
     $current = taxa_facets_get_shortcode_scope();
-    $scopes  = taxa_facets_allowed_scopes();
+    $scopes  = taxa_facets_get_scope_options_by_rank();
     ?>
     <select id="taxa_facets_shortcode_scope" name="<?php echo esc_attr( TAXA_FACETS_OPTION_SHORTCODE_SCOPE ); ?>">
         <option value=""><?php esc_html_e( 'No default scope', 'taxonomy-api' ); ?></option>
-        <?php foreach ( $scopes as $scope ) : ?>
+        <?php foreach ( $scopes as $scope => $label ) : ?>
             <option value="<?php echo esc_attr( $scope ); ?>" <?php selected( $current, $scope ); ?>>
-                <?php echo esc_html( ucfirst( str_replace( '-', ' ', $scope ) ) ); ?>
+                <?php echo esc_html( $label ); ?>
             </option>
         <?php endforeach; ?>
     </select>
@@ -1218,44 +1308,140 @@ function taxa_facets_seed_prompt_field_render() {
 }
 
 function taxa_facets_render_settings_page() {
+    $available_ranks = taxa_facets_get_available_scope_ranks();
+    $current_rank    = taxa_facets_get_admin_rank();
+    $scopes          = $current_rank !== '' ? taxa_facets_get_scope_options_by_rank( $current_rank ) : array();
+    $current_scope   = taxa_facets_get_admin_scope();
+    if ( $current_rank !== '' ) {
+        update_option( TAXA_FACETS_OPTION_SELECTED_RANK, $current_rank );
+    }
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Taxa Facets', 'taxonomy-api' ); ?></h1>
-        <?php if ( current_user_can( 'manage_options' ) ) : ?>
-            <p>
-                <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url(
-                    admin_url( 'admin-post.php?action=taxa_facets_seed_maps' ),
-                    'taxa_facets_seed_maps'
-                ) ); ?>">
-                    <?php esc_html_e( 'Generate facet maps with GPT', 'taxonomy-api' ); ?>
-                </a>
-            </p>
+        <?php if ( isset( $_GET['taxa_facets_clear_status'] ) && 'success' === sanitize_text_field( wp_unslash( $_GET['taxa_facets_clear_status'] ) ) ) : ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php esc_html_e( 'Saved rank selection cleared and scoped facet maps removed.', 'taxonomy-api' ); ?></p>
+            </div>
         <?php endif; ?>
-        <form method="post" action="options.php">
-            <?php
-            settings_fields( 'taxa_facets_maps_group' );
-            do_settings_sections( 'taxa-facet-maps' );
-            submit_button();
-            ?>
+        <form method="get" style="margin: 16px 0;">
+            <input type="hidden" name="page" value="taxa-facet-maps" />
+            <label for="taxa_facets_rank_select" style="margin-right: 8px;">
+                <?php esc_html_e( 'Select taxonomy rank:', 'taxonomy-api' ); ?>
+            </label>
+            <select id="taxa_facets_rank_select" name="rank" style="margin-right: 12px;">
+                <option value=""><?php esc_html_e( 'Select a rank', 'taxonomy-api' ); ?></option>
+                <?php foreach ( $available_ranks as $rank ) : ?>
+                    <option value="<?php echo esc_attr( $rank ); ?>" <?php selected( $current_rank, $rank ); ?>>
+                        <?php echo esc_html( ucfirst( $rank ) ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <label for="taxa_facets_scope_select" style="margin-right: 8px;">
+                <?php esc_html_e( 'Select a scope to manage facets:', 'taxonomy-api' ); ?>
+            </label>
+            <select id="taxa_facets_scope_select" name="scope" <?php disabled( $current_rank === '' ); ?>>
+                <option value=""><?php esc_html_e( 'Select a scope', 'taxonomy-api' ); ?></option>
+                <?php foreach ( $scopes as $slug => $label ) : ?>
+                    <option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $current_scope, $slug ); ?>>
+                        <?php echo esc_html( $label ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <?php submit_button( __( 'Load Scope', 'taxonomy-api' ), 'secondary', '', false ); ?>
         </form>
+        <?php if ( $current_rank !== '' ) : ?>
+            <div class="notice notice-warning">
+                <p><?php esc_html_e( 'Clearing the rank will remove all stored facet maps for scopes under this rank.', 'taxonomy-api' ); ?></p>
+                <p>
+                    <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url(
+                        add_query_arg(
+                            array(
+                                'action' => 'taxa_facets_clear_rank',
+                                'rank'   => $current_rank,
+                            ),
+                            admin_url( 'admin-post.php' )
+                        ),
+                        'taxa_facets_clear_rank'
+                    ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Clear the saved rank and delete all scoped facet maps for it?', 'taxonomy-api' ) ); ?>');">
+                        <?php esc_html_e( 'Clear Rank', 'taxonomy-api' ); ?>
+                    </a>
+                </p>
+            </div>
+        <?php endif; ?>
+        <?php if ( empty( $available_ranks ) ) : ?>
+            <div class="notice notice-warning">
+                <p><?php esc_html_e( 'No ranked taxa were found. Import taxa with rank metadata to configure scoped facets.', 'taxonomy-api' ); ?></p>
+            </div>
+        <?php elseif ( '' === $current_rank ) : ?>
+            <p><?php esc_html_e( 'Choose a taxonomy rank to load the available scopes.', 'taxonomy-api' ); ?></p>
+        <?php elseif ( empty( $scopes ) ) : ?>
+            <div class="notice notice-warning">
+                <p><?php esc_html_e( 'No taxa were found for the selected rank.', 'taxonomy-api' ); ?></p>
+            </div>
+        <?php endif; ?>
+        <?php if ( '' === $current_scope ) : ?>
+            <p><?php esc_html_e( 'Choose a scope to edit its facet maps and shortcode.', 'taxonomy-api' ); ?></p>
+        <?php else : ?>
+            <h2 class="nav-tab-wrapper">
+                <?php foreach ( $scopes as $slug => $label ) : ?>
+                    <?php
+                    $tab_url = add_query_arg(
+                        array(
+                            'page'  => 'taxa-facet-maps',
+                            'rank'  => $current_rank,
+                            'scope' => $slug,
+                        ),
+                        admin_url( 'admin.php' )
+                    );
+                    $tab_class = $slug === $current_scope ? 'nav-tab nav-tab-active' : 'nav-tab';
+                    ?>
+                    <a class="<?php echo esc_attr( $tab_class ); ?>" href="<?php echo esc_url( $tab_url ); ?>">
+                        <?php echo esc_html( $label ); ?>
+                    </a>
+                <?php endforeach; ?>
+            </h2>
+            <?php if ( current_user_can( 'manage_options' ) ) : ?>
+                <p>
+                    <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url(
+                        add_query_arg(
+                            array(
+                                'action' => 'taxa_facets_seed_maps',
+                                'rank'   => $current_rank,
+                                'scope'  => $current_scope,
+                            ),
+                            admin_url( 'admin-post.php' )
+                        ),
+                        'taxa_facets_seed_maps'
+                    ) ); ?>">
+                        <?php esc_html_e( 'Generate facet maps with GPT', 'taxonomy-api' ); ?>
+                    </a>
+                </p>
+            <?php endif; ?>
+            <form method="post" action="options.php">
+                <?php
+                echo '<input type="hidden" name="rank" value="' . esc_attr( $current_rank ) . '" />';
+                echo '<input type="hidden" name="scope" value="' . esc_attr( $current_scope ) . '" />';
+                settings_fields( 'taxa_facets_maps_group' );
+                do_settings_sections( 'taxa-facet-maps' );
+                submit_button();
+                ?>
+            </form>
+            <div style="margin-top: 24px;">
+                <h2><?php esc_html_e( 'Scope Shortcode', 'taxonomy-api' ); ?></h2>
+                <p><?php esc_html_e( 'Use this shortcode to render the explorer for the selected scope.', 'taxonomy-api' ); ?></p>
+                <input
+                    type="text"
+                    class="large-text code"
+                    readonly
+                    value="<?php echo esc_attr( sprintf( '[taxa_explorer scope="%s"]', $current_scope ) ); ?>"
+                />
+            </div>
+        <?php endif; ?>
     </div>
     <?php
 }
 
-function taxa_facets_sanitize_scope_list( $value ) {
-    if ( ! is_string( $value ) ) {
-        return '';
-    }
-
-    $slugs = taxa_facets_parse_slug_list( $value );
-    return implode( "\n", $slugs );
-}
-
 function taxa_facets_sanitize_shortcode_scope( $value ) {
-    return taxa_facets_sanitize_scope_value( $value );
-}
-
-function taxa_facets_sanitize_map_scope( $value ) {
     return taxa_facets_sanitize_scope_value( $value );
 }
 
@@ -1386,12 +1572,33 @@ function taxa_facets_handle_gpt_seed_maps() {
 
     check_admin_referer( 'taxa_facets_seed_maps' );
 
+    $scope = '';
+    if ( isset( $_GET['scope'] ) ) {
+        $scope = sanitize_key( wp_unslash( $_GET['scope'] ) );
+    }
+    $scope = taxa_facets_sanitize_scope_value( $scope );
+    $rank = '';
+    if ( isset( $_GET['rank'] ) ) {
+        $rank = sanitize_key( wp_unslash( $_GET['rank'] ) );
+    }
+    $rank = taxa_facets_get_admin_rank() !== '' ? $rank : '';
+    $redirect_url = add_query_arg(
+        array_filter(
+            array(
+                'page'  => 'taxa-facet-maps',
+                'rank'  => $rank,
+                'scope' => $scope,
+            )
+        ),
+        admin_url( 'admin.php' )
+    );
+
     if ( taxa_facets_maps_locked() ) {
         wp_safe_redirect(
             add_query_arg(
                 'taxa_facets_seed_status',
                 'locked',
-                admin_url( 'options-general.php?page=taxa-facet-maps' )
+                $redirect_url
             )
         );
         exit;
@@ -1403,7 +1610,7 @@ function taxa_facets_handle_gpt_seed_maps() {
             add_query_arg(
                 'taxa_facets_seed_status',
                 'disabled',
-                admin_url( 'options-general.php?page=taxa-facet-maps' )
+                $redirect_url
             )
         );
         exit;
@@ -1415,13 +1622,13 @@ function taxa_facets_handle_gpt_seed_maps() {
             add_query_arg(
                 'taxa_facets_seed_status',
                 'missing',
-                admin_url( 'options-general.php?page=taxa-facet-maps' )
+                $redirect_url
             )
         );
         exit;
     }
 
-    $map_scope = taxa_facets_get_map_scope();
+    $map_scope = $scope;
     $prompt = taxa_facets_build_seed_prompt( $focus_keyword, $map_scope );
     $response = get_gpt_response( $prompt, 'gpt-4o-mini' );
 
@@ -1430,7 +1637,7 @@ function taxa_facets_handle_gpt_seed_maps() {
             add_query_arg(
                 'taxa_facets_seed_status',
                 'empty',
-                admin_url( 'options-general.php?page=taxa-facet-maps' )
+                $redirect_url
             )
         );
         exit;
@@ -1449,7 +1656,7 @@ function taxa_facets_handle_gpt_seed_maps() {
             add_query_arg(
                 'taxa_facets_seed_status',
                 'invalid',
-                admin_url( 'options-general.php?page=taxa-facet-maps' )
+                $redirect_url
             )
         );
         exit;
@@ -1470,12 +1677,41 @@ function taxa_facets_handle_gpt_seed_maps() {
         add_query_arg(
             'taxa_facets_seed_status',
             'success',
-            admin_url( 'options-general.php?page=taxa-facet-maps' )
+            $redirect_url
         )
     );
     exit;
 }
 add_action( 'admin_post_taxa_facets_seed_maps', 'taxa_facets_handle_gpt_seed_maps' );
+
+add_action( 'admin_post_taxa_facets_clear_rank', 'taxa_facets_handle_clear_rank' );
+function taxa_facets_handle_clear_rank() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( esc_html__( 'You do not have permission to perform this action.', 'taxonomy-api' ) );
+    }
+
+    check_admin_referer( 'taxa_facets_clear_rank' );
+
+    $rank = '';
+    if ( isset( $_GET['rank'] ) ) {
+        $rank = sanitize_key( wp_unslash( $_GET['rank'] ) );
+    }
+
+    $rank = taxa_facets_get_admin_rank() !== '' ? $rank : '';
+    taxa_facets_clear_ranked_scopes( $rank );
+    delete_option( TAXA_FACETS_OPTION_SELECTED_RANK );
+
+    wp_safe_redirect(
+        add_query_arg(
+            array(
+                'page'                     => 'taxa-facet-maps',
+                'taxa_facets_clear_status' => 'success',
+            ),
+            admin_url( 'admin.php' )
+        )
+    );
+    exit;
+}
 
 function taxa_facets_seed_maps_admin_notice() {
     if ( ! isset( $_GET['page'], $_GET['taxa_facets_seed_status'] ) || $_GET['page'] !== 'taxa-facet-maps' ) {
