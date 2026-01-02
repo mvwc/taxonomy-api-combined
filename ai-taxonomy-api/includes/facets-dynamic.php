@@ -1563,6 +1563,11 @@ function taxa_facets_update_map_from_gpt( $option_key, $values, $scope ) {
 
     $scoped_key = taxa_facets_get_scoped_option_key( $option_key, $scope );
     update_option( $scoped_key, implode( "\n", $normalized ) );
+
+    if ( in_array( $option_key, array( TAXA_FACETS_OPTION_COLOR_MAP_RAW, TAXA_FACETS_OPTION_BEHAVIOR_MAP_RAW, TAXA_FACETS_OPTION_HABITAT_MAP_RAW ), true ) ) {
+        $bitmask_map = taxa_facets_build_bitmask_map( $normalized );
+        error_log( '[FACETS][MAP] Bitmask map built for ' . $scoped_key . ': ' . wp_json_encode( $bitmask_map ) );
+    }
 }
 
 function taxa_facets_handle_gpt_seed_maps() {
@@ -1630,7 +1635,9 @@ function taxa_facets_handle_gpt_seed_maps() {
 
     $map_scope = $scope;
     $prompt = taxa_facets_build_seed_prompt( $focus_keyword, $map_scope );
+    error_log( '[FACETS][GPT] Seed prompt: ' . $prompt );
     $response = get_gpt_response( $prompt, 'gpt-4o-mini' );
+    error_log( '[FACETS][GPT] Seed response: ' . (string) $response );
 
     if ( ! $response ) {
         wp_safe_redirect(
