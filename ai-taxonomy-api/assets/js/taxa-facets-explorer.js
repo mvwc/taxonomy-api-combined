@@ -49,6 +49,7 @@
         const clearAllHeader = root.querySelector('[data-action="clear-all"]');
         const filtersCloseButtons = root.querySelectorAll('[data-filters-close]');
         const lockedFacets = safeParseJSON(root.dataset.lockedFacets || '{}');
+        const scopeValue = root.getAttribute('data-scope') || '';
 
         // Try within this explorer root first, then within its panel, then fall back to document.
         const includeExtinctToggle =
@@ -595,6 +596,9 @@
 
             if (state.taxaRank) {
                 params.taxa_rank = state.taxaRank;
+            }
+            if (scopeValue) {
+                params.scope = scopeValue;
             }
 
             // 1) Normal user-applied facets

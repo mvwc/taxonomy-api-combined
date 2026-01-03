@@ -65,6 +65,7 @@ function taxa_facets_register_rest_routes() {
 
                 // Rank filter is now stored on facets table (no join)
                 'taxa_rank'      => array(),
+                'scope'          => array(),
 
                 // NEW: by default we EXCLUDE extinct, unless include_extinct=1
                 'include_extinct' => array(
@@ -249,6 +250,18 @@ if ( ! function_exists( 'taxa_facets_column_exists' ) ) {
  */
 function taxa_facets_rest_search( WP_REST_Request $request ) {
     global $wpdb;
+
+    $previous_scope = function_exists( 'taxa_facets_get_current_scope' ) ? taxa_facets_get_current_scope() : '';
+    $resolved_scope = '';
+    if ( function_exists( 'taxa_facets_sanitize_scope_value' ) ) {
+        $resolved_scope = taxa_facets_sanitize_scope_value( $request->get_param( 'scope' ) );
+    }
+    if ( '' === $resolved_scope && function_exists( 'taxa_facets_get_shortcode_scope' ) ) {
+        $resolved_scope = taxa_facets_get_shortcode_scope();
+    }
+    if ( '' !== $resolved_scope && function_exists( 'taxa_facets_set_current_scope' ) ) {
+        taxa_facets_set_current_scope( $resolved_scope );
+    }
 
     $table_facets = $wpdb->prefix . 'taxa_facets';
     $table_posts  = $wpdb->posts;
@@ -564,6 +577,10 @@ function taxa_facets_rest_search( WP_REST_Request $request ) {
             'taxa_rank'           => $taxa_rank_row,
             'extinct'             => $extinct_row,
         );
+    }
+
+    if ( function_exists( 'taxa_facets_set_current_scope' ) ) {
+        taxa_facets_set_current_scope( $previous_scope );
     }
 
     return new WP_REST_Response(
@@ -927,6 +944,9 @@ function taxa_facets_explorer_shortcode( $atts = array() ) {
     <div class="taxa-explorer"
         data-taxa-facets-root
         data-default-taxa-rank="<?php echo esc_attr( $default_taxa_rank ); ?>"
+        <?php if ( ! empty( $atts['scope'] ) ) : ?>
+            data-scope="<?php echo esc_attr( $atts['scope'] ); ?>"
+        <?php endif; ?>
         <?php if ( ! empty( $locked_facets_json ) ) : ?>
             data-locked-facets='<?php echo esc_attr( $locked_facets_json ); ?>'
         <?php endif; ?>
